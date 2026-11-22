@@ -1,0 +1,751 @@
+{
+ "month": "202610",
+ "sources": {
+  "trajectories": "https://globalmeteornetwork.org/data/traj_summary_data/monthly/traj_summary_monthly_202610.txt",
+  "coordinates": "https://globalmeteornetwork.org/data/kml_fov/GMN_station_coordinates_public.json",
+  "daily_index": "https://globalmeteornetwork.org/status/Rmsindexes/",
+  "license": "CC BY 4.0, Global Meteor Network"
+ },
+ "trajectories": 126593,
+ "stations": 1242,
+ "countries": 39,
+ "pairs": 25525,
+ "multiplicity": {
+  "2": 62267,
+  "3": 25939,
+  "4": 13774,
+  "5": 8346,
+  "6+": 16267
+ },
+ "two_station_orbits": 62267,
+ "two_station_share": 0.4919,
+ "top_second_witness": {
+  "station": "HU000B",
+  "orbits": 899
+ },
+ "single_partner_stations": [
+  "AU002E",
+  "AU004A",
+  "BR000G",
+  "BR000J",
+  "BR000M",
+  "BR000Y",
+  "BR001G",
+  "BR001U",
+  "CA001H",
+  "CL0002",
+  "CL0003",
+  "ES000D",
+  "FI0001",
+  "FI0008",
+  "FR000U",
+  "IL0008",
+  "JP0001",
+  "JP0003",
+  "JP0005",
+  "RO001N",
+  "RU000N",
+  "RU000V",
+  "RU001H",
+  "TJ0001",
+  "TJ0002",
+  "UA0004",
+  "US002Z",
+  "US003K"
+ ],
+ "islands": [
+  {
+   "stations": 595,
+   "countries": [
+    "AT",
+    "BA",
+    "BE",
+    "BG",
+    "CH",
+    "CZ",
+    "DE",
+    "DK",
+    "FR",
+    "GR",
+    "HR",
+    "HU",
+    "IE",
+    "IT",
+    "LU",
+    "MD",
+    "NL",
+    "PL",
+    "RO",
+    "SI",
+    "SK",
+    "UA",
+    "UK"
+   ]
+  },
+  {
+   "stations": 191,
+   "countries": [
+    "NZ"
+   ]
+  },
+  {
+   "stations": 177,
+   "countries": [
+    "CA",
+    "MX",
+    "US"
+   ]
+  },
+  {
+   "stations": 90,
+   "countries": [
+    "JP",
+    "KR"
+   ]
+  },
+  {
+   "stations": 41,
+   "countries": [
+    "CA",
+    "US"
+   ]
+  },
+  {
+   "stations": 40,
+   "countries": [
+    "AU"
+   ]
+  },
+  {
+   "stations": 19,
+   "countries": [
+    "BR"
+   ]
+  },
+  {
+   "stations": 19,
+   "countries": [
+    "US"
+   ]
+  },
+  {
+   "stations": 17,
+   "countries": [
+    "ES",
+    "PT"
+   ]
+  },
+  {
+   "stations": 12,
+   "countries": [
+    "FI",
+    "RU"
+   ]
+  },
+  {
+   "stations": 11,
+   "countries": [
+    "AU"
+   ]
+  },
+  {
+   "stations": 9,
+   "countries": [
+    "AU"
+   ]
+  },
+  {
+   "stations": 7,
+   "countries": [
+    "ZA"
+   ]
+  },
+  {
+   "stations": 4,
+   "countries": [
+    "IL"
+   ]
+  },
+  {
+   "stations": 4,
+   "countries": [
+    "RU"
+   ]
+  },
+  {
+   "stations": 2,
+   "countries": [
+    "CL"
+   ]
+  },
+  {
+   "stations": 2,
+   "countries": [
+    "JP"
+   ]
+  },
+  {
+   "stations": 2,
+   "countries": [
+    "TJ"
+   ]
+  }
+ ],
+ "cut_points": 37,
+ "cut_points_top": [
+  {
+   "station": "US004L",
+   "cut_off_stations": 86
+  },
+  {
+   "station": "US002J",
+   "cut_off_stations": 72
+  },
+  {
+   "station": "US0054",
+   "cut_off_stations": 66
+  },
+  {
+   "station": "CAWEC3",
+   "cut_off_stations": 65
+  },
+  {
+   "station": "BR001H",
+   "cut_off_stations": 6
+  },
+  {
+   "station": "BR002B",
+   "cut_off_stations": 6
+  },
+  {
+   "station": "UA000B",
+   "cut_off_stations": 6
+  },
+  {
+   "station": "US0045",
+   "cut_off_stations": 6
+  },
+  {
+   "station": "BR001R",
+   "cut_off_stations": 5
+  },
+  {
+   "station": "BR0029",
+   "cut_off_stations": 5
+  }
+ ],
+ "cut_points_3plus": 15,
+ "country_two_station_share": {
+  "AT": 0.5038,
+  "AU": 0.6931,
+  "BA": 0.5,
+  "BE": 0.3323,
+  "BG": 0.6266,
+  "CA": 0.6284,
+  "CZ": 0.4071,
+  "DE": 0.4244,
+  "DK": 0.5328,
+  "ES": 0.9424,
+  "FR": 0.3751,
+  "GR": 0.8313,
+  "HR": 0.4437,
+  "HU": 0.4059,
+  "IE": 0.3786,
+  "IT": 0.4803,
+  "KR": 0.3387,
+  "LU": 0.4598,
+  "MD": 0.5077,
+  "NL": 0.3073,
+  "NZ": 0.2793,
+  "PL": 0.4492,
+  "RO": 0.567,
+  "SI": 0.3811,
+  "SK": 0.2608,
+  "UA": 0.6181,
+  "UK": 0.2972,
+  "US": 0.6102
+ },
+ "top_sustainers": {
+  "stations": 50,
+  "two_station_orbits": 18516
+ },
+ "international_orbits": 31320,
+ "vgeo_sigma_by_stations": {
+  "2": {
+   "median_km_s": 0.311,
+   "n": 61858
+  },
+  "3": {
+   "median_km_s": 0.213,
+   "n": 25833
+  },
+  "4": {
+   "median_km_s": 0.168,
+   "n": 13747
+  },
+  "5+": {
+   "median_km_s": 0.096,
+   "n": 24590
+  }
+ },
+ "two_station_low_qc": {
+  "threshold_deg": 10.0,
+  "orbits": 3579
+ },
+ "closest_islands": [
+  {
+   "km": 306,
+   "a": "UA0007",
+   "b": "RU000V",
+   "island_a": [
+    "AT",
+    "BA",
+    "BE",
+    "BG",
+    "CH",
+    "CZ",
+    "DE",
+    "DK",
+    "FR",
+    "GR",
+    "HR",
+    "HU",
+    "IE",
+    "IT",
+    "LU",
+    "MD",
+    "NL",
+    "PL",
+    "RO",
+    "SI",
+    "SK",
+    "UA",
+    "UK"
+   ],
+   "island_b": [
+    "RU"
+   ]
+  },
+  {
+   "km": 436,
+   "a": "US0079",
+   "b": "US005G",
+   "island_a": [
+    "CA",
+    "MX",
+    "US"
+   ],
+   "island_b": [
+    "US"
+   ]
+  },
+  {
+   "km": 442,
+   "a": "AU004R",
+   "b": "AU000B",
+   "island_a": [
+    "AU"
+   ],
+   "island_b": [
+    "AU"
+   ]
+  },
+  {
+   "km": 470,
+   "a": "FR001D",
+   "b": "ES000Q",
+   "island_a": [
+    "AT",
+    "BA",
+    "BE",
+    "BG",
+    "CH",
+    "CZ",
+    "DE",
+    "DK",
+    "FR",
+    "GR",
+    "HR",
+    "HU",
+    "IE",
+    "IT",
+    "LU",
+    "MD",
+    "NL",
+    "PL",
+    "RO",
+    "SI",
+    "SK",
+    "UA",
+    "UK"
+   ],
+   "island_b": [
+    "ES",
+    "PT"
+   ]
+  },
+  {
+   "km": 543,
+   "a": "JP0005",
+   "b": "JP0001",
+   "island_a": [
+    "JP",
+    "KR"
+   ],
+   "island_b": [
+    "JP"
+   ]
+  },
+  {
+   "km": 824,
+   "a": "DK000J",
+   "b": "FI0009",
+   "island_a": [
+    "AT",
+    "BA",
+    "BE",
+    "BG",
+    "CH",
+    "CZ",
+    "DE",
+    "DK",
+    "FR",
+    "GR",
+    "HR",
+    "HU",
+    "IE",
+    "IT",
+    "LU",
+    "MD",
+    "NL",
+    "PL",
+    "RO",
+    "SI",
+    "SK",
+    "UA",
+    "UK"
+   ],
+   "island_b": [
+    "FI",
+    "RU"
+   ]
+  },
+  {
+   "km": 1082,
+   "a": "US001U",
+   "b": "CA002N",
+   "island_a": [
+    "CA",
+    "MX",
+    "US"
+   ],
+   "island_b": [
+    "CA",
+    "US"
+   ]
+  },
+  {
+   "km": 1352,
+   "a": "BG0005",
+   "b": "IL000A",
+   "island_a": [
+    "AT",
+    "BA",
+    "BE",
+    "BG",
+    "CH",
+    "CZ",
+    "DE",
+    "DK",
+    "FR",
+    "GR",
+    "HR",
+    "HU",
+    "IE",
+    "IT",
+    "LU",
+    "MD",
+    "NL",
+    "PL",
+    "RO",
+    "SI",
+    "SK",
+    "UA",
+    "UK"
+   ],
+   "island_b": [
+    "IL"
+   ]
+  },
+  {
+   "km": 1385,
+   "a": "IL000A",
+   "b": "RU000V",
+   "island_a": [
+    "IL"
+   ],
+   "island_b": [
+    "RU"
+   ]
+  },
+  {
+   "km": 1547,
+   "a": "RU001F",
+   "b": "RU0019",
+   "island_a": [
+    "FI",
+    "RU"
+   ],
+   "island_b": [
+    "RU"
+   ]
+  }
+ ],
+ "liveness": {
+  "uploaded": 1431,
+  "uploaded_with_orbits": 1229,
+  "running_no_partner": 115,
+  "running_no_partner_top": [
+   {
+    "station": "MA0002",
+    "nights": 29,
+    "detections": 4223
+   },
+   {
+    "station": "AU0047",
+    "nights": 31,
+    "detections": 3862
+   },
+   {
+    "station": "GL0001",
+    "nights": 31,
+    "detections": 3806
+   },
+   {
+    "station": "AU0034",
+    "nights": 24,
+    "detections": 3465
+   },
+   {
+    "station": "MA0001",
+    "nights": 25,
+    "detections": 3395
+   },
+   {
+    "station": "US0036",
+    "nights": 31,
+    "detections": 2563
+   },
+   {
+    "station": "ES000C",
+    "nights": 31,
+    "detections": 1797
+   },
+   {
+    "station": "US004T",
+    "nights": 29,
+    "detections": 1791
+   },
+   {
+    "station": "US004Z",
+    "nights": 31,
+    "detections": 1600
+   },
+   {
+    "station": "USL01C",
+    "nights": 24,
+    "detections": 1552
+   },
+   {
+    "station": "AU001F",
+    "nights": 31,
+    "detections": 1501
+   },
+   {
+    "station": "UK00CT",
+    "nights": 31,
+    "detections": 1490
+   },
+   {
+    "station": "US004W",
+    "nights": 29,
+    "detections": 1404
+   },
+   {
+    "station": "AU0020",
+    "nights": 31,
+    "detections": 1365
+   },
+   {
+    "station": "PL0006",
+    "nights": 28,
+    "detections": 1359
+   },
+   {
+    "station": "US004S",
+    "nights": 29,
+    "detections": 1317
+   },
+   {
+    "station": "ES0005",
+    "nights": 31,
+    "detections": 1298
+   },
+   {
+    "station": "AU004P",
+    "nights": 31,
+    "detections": 1274
+   },
+   {
+    "station": "UK004A",
+    "nights": 31,
+    "detections": 1247
+   },
+   {
+    "station": "AU0031",
+    "nights": 31,
+    "detections": 1198
+   }
+  ],
+  "uploaded_zero_detections": 87,
+  "known_not_uploaded": 459,
+  "orbits_without_index": 13
+ },
+ "changes": {
+  "previous_month": "202609",
+  "previous_stations": 1258,
+  "disappeared": 67,
+  "appeared": 51,
+  "disappeared_two_station_orbits_previous": 1228,
+  "neighbours_hurt": 629,
+  "neighbours_hurt_top": [
+   {
+    "station": "NZ002C",
+    "shared_meteors_lost": 408
+   },
+   {
+    "station": "HR002L",
+    "shared_meteors_lost": 346
+   },
+   {
+    "station": "NZ0012",
+    "shared_meteors_lost": 342
+   },
+   {
+    "station": "NZ0051",
+    "shared_meteors_lost": 327
+   },
+   {
+    "station": "NZ0026",
+    "shared_meteors_lost": 259
+   },
+   {
+    "station": "UA0001",
+    "shared_meteors_lost": 248
+   },
+   {
+    "station": "NZ004Y",
+    "shared_meteors_lost": 208
+   },
+   {
+    "station": "NZ004D",
+    "shared_meteors_lost": 191
+   },
+   {
+    "station": "CZ000Z",
+    "shared_meteors_lost": 186
+   },
+   {
+    "station": "NZ001Z",
+    "shared_meteors_lost": 181
+   }
+  ],
+  "disappeared_by_country": {
+   "NZ": 12,
+   "US": 9,
+   "BR": 7,
+   "UK": 6,
+   "HR": 5,
+   "AU": 4,
+   "BE": 4,
+   "AQ": 3,
+   "CZ": 3,
+   "PL": 3,
+   "RU": 3,
+   "UA": 3,
+   "CA": 2,
+   "BA": 1,
+   "DK": 1,
+   "IT": 1
+  },
+  "disappeared_stations": [
+   "AQ0003",
+   "AQ0004",
+   "AQ000A",
+   "AU000C_2",
+   "AU000F_2",
+   "AU000L",
+   "AU0046",
+   "BA0003",
+   "BE000D_2",
+   "BE000J",
+   "BE000J_2",
+   "BE000K",
+   "BR0004",
+   "BR0005",
+   "BR000L",
+   "BR000R",
+   "BR0011",
+   "BR001Z",
+   "BR0021",
+   "CA001G",
+   "CA001N",
+   "CZ000U",
+   "CZ000V",
+   "CZ0013",
+   "DK000C",
+   "HR000J_2",
+   "HR000P",
+   "HR000U",
+   "HR000V",
+   "HR0025_2",
+   "IT000A_2",
+   "NZ000A",
+   "NZ000F",
+   "NZ000Y_2",
+   "NZ001S",
+   "NZ001V",
+   "NZ002S_2",
+   "NZ003R_2",
+   "NZ003S_2",
+   "NZ004R",
+   "NZ005Y",
+   "NZ006U_2",
+   "NZ007C_2",
+   "PL0006",
+   "PL000J_2",
+   "PL000L_2",
+   "RU0003",
+   "RU000E",
+   "RU000F",
+   "UA0002",
+   "UA0002_2",
+   "UA000A_2",
+   "UK004A",
+   "UK005Y",
+   "UK0088",
+   "UK008T_2",
+   "UK009D",
+   "UK009K_2",
+   "US0030",
+   "US0036",
+   "US003S",
+   "US004A",
+   "US004Z",
+   "US005D_2",
+   "USC0G1_2",
+   "USL019",
+   "USL01C"
+  ]
+ }
+}
