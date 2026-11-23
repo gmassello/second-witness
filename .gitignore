@@ -3,3 +3,4 @@ competidores*.md
 competidores*.html
 repos-relate-github.md
 .idea/
+__pycache__/
