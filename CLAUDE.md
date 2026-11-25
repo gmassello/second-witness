@@ -16,7 +16,8 @@ python3 -m unittest discover -s tests && node --test tests/
 python3 -m unittest tests.test_queries.TestTakeDown
 # lint: none — no build step and no linter dependency; the parity tests are the gate
 # type-check: none — plain JavaScript and Python, no type checker added
-# deploy (planned, U11): GitHub Pages from .github/workflows/pages.yml on push to main
+# deploy (planned, U11): GitHub Pages from .github/workflows/pages.yml on push to main and daily,
+# loading the current month with `python3 load/build.py --partial` (published, never committed)
 ```
 
 Planned, not built: these lines follow `docs/PLAN.md` and become real as each unit lands.

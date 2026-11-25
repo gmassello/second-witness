@@ -28,6 +28,7 @@ At the end of the plan a judge opens a public page with no account and sees the 
   - happy: October 2026 files → the `SHARED` weight between two stations equals the count of trajectories in `traj_summary_monthly_202610.txt` whose participating stations include both. Covers AE1.
   - happy: a fresh clone with no network and no keys → the CLI answers a take-down from the committed `store/gmn.rl`. Covers AE5.
   - edge: a month already in the store is loaded again → its slice is replaced, the other months are unchanged
+  - happy: `--partial` on 2026-11-25 → the latest month is `202611` with `partial: true` and `as_of: 2026-11-25`, its counts equal that day's `traj_summary_monthly_202611.txt`, the 12 closed months and the committed `store/gmn.rl` are unchanged. Covers AE23.
   - edge: a station in the trajectories but missing from the coordinates file → stored with null position, not dropped
   - edge: a row that lists the same station twice → counted once; `ES001` never matches `ES001G` (exact codes, station list read from column 85)
   - error: a trajectory file with a column count other than 86 → non-zero exit naming the count, store untouched
@@ -158,13 +159,14 @@ At the end of the plan a judge opens a public page with no account and sees the 
   - error: a number in the README that differs from the test's result → the test fails naming it
 
 ### U11. Deploy to GitHub Pages
-- **Goal:** `site/` is published on GitHub Pages at a public URL that opens without a login, and the URL is in `PENDING.md`
+- **Goal:** `site/` is published on GitHub Pages at a public URL that opens without a login, and the URL is in `PENDING.md`; the same workflow runs daily on a schedule, loads the current month with `--partial` and publishes the page data and `gmn-latest.rl` without committing them
 - **Covers:** R5 · F3
 - **Files:** `.github/workflows/pages.yml`, `PENDING.md`
 - **Depends on:** U5
 - **Status:** todo
 - **Tests:**
   - happy: push to main → the public URL serves the page whose title is "Second Witness"
+  - happy: the scheduled run → the page shows the current month as partial with today's date, and `gmn-latest.rl` answers a take-down with `relate --load`
   - edge: the page opened on a phone width → no horizontal scroll
   - error: the data files missing from the deploy → the page shows "data not found" and the workflow fails its content check
 
@@ -177,6 +179,7 @@ At the end of the plan a judge opens a public page with no account and sees the 
 - **Tests:**
   - happy: push to main → CI green; manual run of uptime → green
   - error: the page serves a 404 page or the store URL answers without the `.rl` bundle → uptime red
+  - error: the page's `as_of` is more than 2 days old → uptime red
 
 ## Cut line
 | Tier | Units | Why |
