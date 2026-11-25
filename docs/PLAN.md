@@ -3,11 +3,12 @@
 Source: `docs/BRIEF.md`, `docs/ARCHITECTURE.md` · Deadline: 2026-12-11 18:00 -08:00 (2026-12-11 23:00 -03:00) · Hours left at writing: 435.1
 
 ## Summary
-At the end of the plan a judge opens a public page with no account and sees the GMN cameras that run with no partner, takes any one down, opens a country, follows a witness chain, reads a station's last 12 months and copies an introduction for the mailing list. An agent asks the same questions over MCP and the CLI opens the committed store from its GitHub URL; all three read the same Cypher files. The unit that unblocks the demo is U1 (the store), then U3 (the queries) and U5 (the page).
+At the end of the plan a judge opens a public page with no account and sees the GMN cameras that run with no partner, takes any one down, opens a country, follows a witness chain, reads a station's last 12 months and copies an introduction for the mailing list. An agent asks the same questions over MCP and the CLI opens the store from its GitHub Release URL; all three read the same Cypher files. The unit that unblocks the demo is U1 (the store), then U3 (the queries) and U5 (the page).
 
 ## Key technical decisions
 - One set of Cypher files read by the page, the MCP server and the CLI — chosen over per-adapter query strings because the three must give equal rows (QA-05). settled: user-approved (ADR-0001)
-- Monthly slices in a committed `store/gmn.rl`; the page data is exported by querying that store — chosen over JSON built straight from GMN because the page must show only what the store holds. settled: user-approved (ADR-0002)
+- Monthly slices in one `gmn.rl`; the page data is exported by querying that store — chosen over JSON built straight from GMN because the page must show only what the store holds. settled: user-approved (ADR-0002)
+- Closed months published as GitHub Release assets with a fixed October 2026 fixture committed — chosen over committing the store monthly because git history would grow by the whole file each month. settled: user-approved (ADR-0007)
 - Own MCP server with named tools on `relate-db==1.2.0` — chosen over Relate's built-in `read_cypher` because R7 asks for named tools. settled: user-approved (ADR-0003)
 - Islands, cut points, same-site groups, moved codes, "could pair" and nearest islands computed by the loader and stored in the graph — chosen over all-live Cypher because the cut-point query ran over 10 min in spike S4. settled: user-approved (ADR-0004)
 - Graph built from measured pairs (orbits), runs in the browser on Relate WASM, no LLM inside the product, introductions by station code posted by the operator, twelve monthly slices. inherited from BRIEF
@@ -18,22 +19,26 @@ At the end of the plan a judge opens a public page with no account and sees the 
 - Languages: Cypher (queries), Python 3 stdlib (loader, tests), Python 3 + `relate-db` (MCP), JavaScript + HTML/CSS (page), YAML (workflows). plan-time
 
 ## Units
-### U1. Monthly loader into the committed store
-- **Goal:** one command downloads a month of GMN trajectories, station coordinates and the per-night upload index and writes that month's slice into `store/gmn.rl` (stations, countries, months, `SHARED` pairs with meteors, two-station count and up to three trajectory IDs, `STATS` per station); a rebuild command produces the 12-month store
+### U1. Monthly loader into the released store
+- **Goal:** one command downloads a month of GMN trajectories, station coordinates and the per-night upload index and writes that month's slice into `gmn.rl` (stations, countries, months, `SHARED` pairs with meteors, two-station count and up to three trajectory IDs, `STATS` per station); a rebuild command produces the 12-month store; a closed month is uploaded as the asset of a GitHub Release `store-<YYYYMM>` and listed in `data/months.json`; the October 2026 fixture is committed once
 - **Covers:** R1, R6 · F3
-- **Files:** `load/build.py`, `load/gmn.py`, `store/gmn.rl`, `tests/test_load.py`
+- **Files:** `load/build.py`, `load/gmn.py`, `store/gmn-202610.rl`, `data/months.json`, `.gitignore` (`store/gmn.rl`), `tests/test_load.py`
+- **Notes:** write with batched `UNWIND $rows` and an index on `Station.code`, 1,000 rows per statement and one transaction per batch (Relate ADR-0155: one statement per node is quadratic; issue #322: a single commit over 64 MB of WAL fails); never match on `id()`; delete the old `.rl` first, then `flush()` and `close()` so the zip is complete. `CREATE INDEX` only registers a name in Relate (ADR-0040); property lookups use automatic indexes. Parse `traj_summary` with the `;` delimiter, strip each field (the writer uses `"; "` and ends lines in `"\n\r"`), skip `#` lines; the station list is the last column and already excludes stations the solver set aside (`ignore_station`)
 - **Depends on:** —
 - **Status:** todo
 - **Tests:**
   - happy: October 2026 files → the `SHARED` weight between two stations equals the count of trajectories in `traj_summary_monthly_202610.txt` whose participating stations include both. Covers AE1.
-  - happy: a fresh clone with no network and no keys → the CLI answers a take-down from the committed `store/gmn.rl`. Covers AE5.
+  - happy: a fresh clone with no network and no keys → the CLI answers a take-down from the committed `store/gmn-202610.rl`. Covers AE5.
+  - happy: spike S8 first → `relate --load` on a test release URL answers a take-down; if not, the README downloads with `curl -L` and opens the local file
+  - happy: `build.py 202611` → a release `store-202611` whose `gmn.rl` holds 12 months, `data/months.json` lists it, and the repo's tracked size grows by under 10 KB
   - edge: a month already in the store is loaded again → its slice is replaced, the other months are unchanged
-  - happy: `--partial` on 2026-11-25 → the latest month is `202611` with `partial: true` and `as_of: 2026-11-25`, its counts equal that day's `traj_summary_monthly_202611.txt`, the 12 closed months and the committed `store/gmn.rl` are unchanged. Covers AE23.
+  - happy: `--partial` on 2026-11-25 → the latest month is `202611` with `partial: true` and `as_of: 2026-11-25`, its counts equal that day's `traj_summary_monthly_202611.txt`, the 12 closed months, the latest release and the committed fixture are unchanged. Covers AE23.
   - edge: a station in the trajectories but missing from the coordinates file → stored with null position, not dropped
   - edge: a row that lists the same station twice → counted once; `ES001` never matches `ES001G` (exact codes, station list read from column 85)
   - error: a trajectory file with a column count other than 86 → non-zero exit naming the count, store untouched
 
 ### U2. Graph properties computed by the loader
+- **Notes:** islands and cut points in one iterative Tarjan pass (no recursion), O(N+E), with DFS subtree sizes: dedupe parallel edges, update the parent's `low` and size when the child is popped, a root needs two DFS children, use `disc[w]` for back edges; store both `cut_off` (stations outside the largest remaining piece) and the smallest piece, and keep whichever gives US004L = 86. rakiza's node-removal BFS is O(N²·(N+E)) and is not used. "Could pair": the first `<Polygon>` of each KML is the 100 km footprint, lon,lat order, ring not closed, longitudes may pass ±180, may be non-convex; score overlap by sampling points with ray-casting point-in-polygon, not by clipping. WesternMeteorPyLib's `stationsCommonVolume` (MIT) is the 3D reference, too slow to run per station
 - **Goal:** after writing a month, the loader stores per station `island`, `cut_off`, `site` and `status` (including `possibly_moved`), plus `COULD_PAIR` (marked estimate) and `NEAREST_ISLAND` relationships, all readable with Cypher
 - **Covers:** R8, R10, R11, R12, R14
 - **Files:** `load/graph.py`, `load/geometry.py`, `tests/test_graph.py`
@@ -48,10 +53,12 @@ At the end of the plan a judge opens a public page with no account and sees the 
   - error: a station with no pointing data → no `COULD_PAIR` for it, no crash
   - happy: ES000C with the 100 km polygons from `kml_fov` → at least one `COULD_PAIR` whose `fov_date` is the fetch date. Covers AE14.
   - edge: a station with no `<CODE>-100km.kml` → no `COULD_PAIR`, `fov100` null
+  - edge: two cameras 3 km apart, or 700 km apart, with overlapping polygons → no `COULD_PAIR` (solver range 5–600 km)
+  - edge: the current month with a station whose last upload is 2 days old → `late`; 4 days old → `dark`
   - error: `kml_fov` times out → the previous polygons and `fov_date` stay, the loader still writes the month
 
 ### U3. Query module and the brief's numbers
-- **Goal:** every question is one `queries/<name>.cypher` file (lonely cameras, take down, country, changes, could turn, talk to, chain, station history, country history, search); a test runs each through the CLI on the committed store and anchors the brief's numbers
+- **Goal:** every question is one `queries/<name>.cypher` file (lonely cameras, take down, country, changes, could turn, talk to, chain, station history, country history, search); a test runs each through the CLI on the committed October 2026 fixture and anchors the brief's numbers
 - **Covers:** R2, R3, R4, R13, R16, R19
 - **Files:** `queries/*.cypher`, `tests/test_queries.py`
 - **Depends on:** U1, U2
@@ -70,7 +77,7 @@ At the end of the plan a judge opens a public page with no account and sees the 
   - error: a query file with a syntax error → the test names the file and Relate's message
 
 ### U4. Page data exported from the store
-- **Goal:** the loader exports `site/data/stats.json` (12 months of station and country stats) and `site/data/pairs-<YYYYMM>.json` for the latest two months by running queries on `store/gmn.rl`; CI fails if the store passes 50 MB
+- **Goal:** the loader exports `site/data/stats.json` (12 months of station and country stats) and `site/data/pairs-<YYYYMM>.json` for the latest two months by running queries on `store/gmn.rl`; CI fails if the tracked repo passes 50 MB
 - **Covers:** R6, R16
 - **Files:** `load/export.py`, `site/data/`, `tests/test_export.py`
 - **Depends on:** U3
@@ -85,6 +92,7 @@ At the end of the plan a judge opens a public page with no account and sees the 
 - **Goal:** the static page loads Relate WASM and the latest data, opens on the whole network's fragility (islands, the stations whose loss costs the most or cuts an island) with running cameras with no partner beside it, lets the user search and take any station down with its proof, gives every station and country its own link, and carries the language, theme and plain/technical toggles; the same queries on WASM return the CLI's rows
 - **Covers:** R2, R3, R4, R5, R8, R13, R18 · F1, F3
 - **Files:** `site/index.html`, `site/app.js`, `site/text.js`, `site/style.css`, `site/vendor/relate-wasm/`, `tests/page.test.mjs`
+- **Notes:** no build step, as `ZNLong2203/precedent` and `ikooq/dropnet` do: `await init()`, `new RelateDb()`, fetch the JSON, load it with chunked `UNWIND $rows` (about 700 rows per statement), and `JSON.parse(db.execute(q, JSON.stringify(params)))` checking `.error`, since engine errors do not throw; recreate the instance after `isWasmTrap`. Vendor exactly `relate.js`, `relate_bg.wasm` (7.2 MB), `trap.js` and `snippets/relate-wasm-dd0c6225f894802b/js/opfs.js` from `@relate/relate-wasm@1.2.0` with its Apache-2.0 `LICENSE`, and patch `trap.js` with 1.3.0's regex ("too much recursion", "recursive use of an object") so Firefox traps are caught. No worker: paint a loading state, then load pairs in batches of about 5,000 positional rows, yielding between batches; add a worker only if a phone takes over 2 s. Add `?v=N` to data and query fetches (Pages caches for minutes). Chain queries use relationship types in the pattern, never `NONE()`/`WHERE` on edges
 - **Depends on:** U4
 - **Status:** todo
 - **Tests:**
@@ -131,12 +139,13 @@ At the end of the plan a judge opens a public page with no account and sees the 
   - happy: ES000C's history → its October 2026 row shows 31 nights, 1,797 detections and 0 orbits. Covers AE21.
   - happy: Spain's history → 12 months listed, October's two-station share equals AE9's. Covers AE22.
   - edge: a station that started in June → no rows before June, not zeros
-  - error: one month's file missing at GMN → the rebuild stops naming the month; the committed store stays as it was
+  - error: one month's file missing at GMN → the rebuild stops naming the month; the published store stays as it was
 
 ### U9. MCP server with named tools
-- **Goal:** a stdio MCP server opens `store/gmn.rl` read-only with `relate-db` and exposes `lonely_cameras`, `take_down`, `country_report`, `who_could_turn`, `talk_to`, `witness_chain` and `station_history`, each running its query file and returning the query name, parameters and rows
+- **Goal:** a stdio MCP server opens a local `.rl` read-only with `relate-db` (`--store`, default the October fixture `store/gmn-202610.rl`; the README shows `curl -L -o store/gmn.rl` of the release asset for 12 months) and exposes `lonely_cameras`, `take_down`, `country_report`, `who_could_turn`, `talk_to`, `witness_chain` and `station_history`, each running its query file and returning the query name, parameters and rows
 - **Covers:** R7 · F4
 - **Files:** `mcp/server.py`, `tests/test_mcp.py`, `docs/agent-run.md`
+- **Notes:** start from the stdlib JSON-RPC loop of `ii8ll8iik-crypto/rakiza/mcp_server.py` (MIT, "Copyright (c) 2026 Emran SM") and swap in our named tools, fixing: negotiate `protocolVersion` (2025-06-18, 2025-03-26, 2024-11-05), `-32700` on bad JSON, `-32602` for an unknown tool, `title`, `annotations` (`readOnlyHint` true), `outputSchema` and `structuredContent {query, parameters, rows}` plus a text copy, open the store once with `relate.connect(path, read_only=True)` and pass parameters as a dict, logs to stderr; the README also gives `relate serve --database store/gmn.rl --mcp stdio --read-only` as a zero-code fallback with Relate's own `read_cypher`
 - **Depends on:** U3
 - **Status:** todo
 - **Tests:**
@@ -146,7 +155,7 @@ At the end of the plan a judge opens a public page with no account and sees the 
   - error: a tool called with an unknown station → an empty result with the station named, `isError` false
 
 ### U10. README
-- **Goal:** the README shows the architecture diagram (mermaid, rendered by GitHub: GMN → loader → `store/gmn.rl` → queries → page / MCP / CLI), says the store uses single-file `.rl` mode and why, what the graph models and cannot know, the judge's one command and first take-down, and the CC BY 4.0 citation
+- **Goal:** the README shows the architecture diagram (mermaid, rendered by GitHub: GMN → loader → release `gmn.rl` → queries → page / MCP / CLI), says the store uses single-file `.rl` mode and why, what the graph models and cannot know, the judge's one command (`relate --load` of `releases/latest/download/gmn.rl`) and first take-down, the October fixture for offline use, and the CC BY 4.0 citation
 - **Covers:** R9 · F3
 - **Files:** `README.md`, `tests/test_readme.py`
 - **Depends on:** U3
@@ -159,19 +168,20 @@ At the end of the plan a judge opens a public page with no account and sees the 
   - error: a number in the README that differs from the test's result → the test fails naming it
 
 ### U11. Deploy to GitHub Pages
-- **Goal:** `site/` is published on GitHub Pages at a public URL that opens without a login, and the URL is in `PENDING.md`; the same workflow runs daily on a schedule, loads the current month with `--partial` and publishes the page data and `gmn-latest.rl` without committing them
+- **Goal:** `site/` is published on GitHub Pages at a public URL that opens without a login, and the URL is in `PENDING.md`; the same workflow runs daily on a schedule, loads the current month with `--partial` and publishes the page data and `gmn-latest.rl` without committing them, starting from the latest release's `gmn.rl`; a monthly workflow (day 2) runs `build.py <previous month>` with `permissions: contents: write`, creates the release and commits `data/months.json`
 - **Covers:** R5 · F3
-- **Files:** `.github/workflows/pages.yml`, `PENDING.md`
+- **Files:** `.github/workflows/pages.yml`, `.github/workflows/monthly.yml`, `PENDING.md`
 - **Depends on:** U5
 - **Status:** todo
 - **Tests:**
   - happy: push to main → the public URL serves the page whose title is "Second Witness"
   - happy: the scheduled run → the page shows the current month as partial with today's date, and `gmn-latest.rl` answers a take-down with `relate --load`
+  - happy: a manual run of the monthly workflow for 202611 → a release `store-202611` exists and `data/months.json` names it
   - edge: the page opened on a phone width → no horizontal scroll
   - error: the data files missing from the deploy → the page shows "data not found" and the workflow fails its content check
 
 ### U12. CI and uptime
-- **Goal:** every push runs the gates of `## Commands`; a scheduled job checks the public page and the store URL every 6 h and goes red if either stops answering with its own content
+- **Goal:** every push runs the gates of `## Commands`; a scheduled job checks the public page and the release URL `releases/latest/download/gmn.rl` every 6 h and goes red if either stops answering with its own content
 - **Covers:** —
 - **Files:** `.github/workflows/ci.yml`, `.github/workflows/uptime.yml`
 - **Depends on:** — (CI); U11 (uptime)

@@ -36,7 +36,7 @@ Chosen option "B", because the files are the core and the page, the MCP server a
 
 ### Confirmation
 
-A parity test runs every file through WASM, `relate-db` and the CLI on the committed store and compares rows; a lint step fails if a `.js` or `.py` file under `site/` or `mcp/` contains `MATCH `.
+A parity test runs every file through WASM, `relate-db` and the CLI on the committed October 2026 fixture and compares rows; a lint step fails if a `.js` or `.py` file under `site/` or `mcp/` contains `MATCH `.
 
 ## Pros and Cons of the Options
 

@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted, amended by ADR-0007
 date: 2026-11-23
 decision-makers: [German]
 consulted: []
@@ -58,4 +58,4 @@ The parity test compares the page data's rows with the same queries on `store/gm
 
 ## More Information
 
-S5 and S6 in `docs/ARCHITECTURE.md`; `docs/api/wasm/spec.md` and `docs/api/cli/spec.md` in https://github.com/relatedb/relate.
+Amended by ADR-0007 (2026-11-25): closed months are no longer committed but published as GitHub Release assets; the repo keeps a fixed October 2026 fixture. S5 and S6 in `docs/ARCHITECTURE.md`; `docs/api/wasm/spec.md` and `docs/api/cli/spec.md` in https://github.com/relatedb/relate.

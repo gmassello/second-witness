@@ -16,7 +16,7 @@ The product has to be up to date to the day. GMN rewrites the current month's tr
 
 * Freshness: the latest month is at most one day old
 * R6 and R16: the store is built by one documented command and every number comes from Cypher on it
-* QA-04: the repo stays within GitHub's limits
+* QA-04: the repo history stays flat
 * R5: the page opens without depending on GMN at view time
 
 ## Considered Options
@@ -59,4 +59,4 @@ U1 (`--partial` leaves the committed store unchanged, AE23), U11 (the scheduled 
 
 ## More Information
 
-Amends ADR-0002 only for the current month; closed months follow it unchanged.
+Amends ADR-0002 only for the current month. Since ADR-0007, closed months are GitHub Release assets: the daily job downloads the latest `gmn.rl` asset, adds the partial month and publishes `gmn-latest.rl` on Pages.
