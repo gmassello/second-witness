@@ -28,6 +28,7 @@ Wiki basis: simple first, hexagonal core with adapters, ADR per hard-to-reverse 
 | C6 | No graph algorithms (components, articulation points) | docs search for connected components: 0 results; S4 | yes |
 | C7 | Deadline 2026-12-11 18:00 PST | `docs/HACKATHON.md` | yes |
 | C8 | GMN data CC BY 4.0, cite the site and Vida et al. 2020, 2021 | https://globalmeteornetwork.org/data/ | yes |
+| C10 | GMN's field-of-view polygons (`kml_fov/<CODE>-100km.kml`, about 2.5 KB each) describe the current pointing only; the dated pointing history is `kml_fov/GMN_station_coordinates_public.json` (2.0 MB, positions rounded to 2 decimals) | GET on 2026-11-25: listing 200 in 11.3 s, 593 KB, about 1,820 stations × 3 heights; `ES001G-100km.kml` 200 in 0.8 s, one lon/lat polygon at 100 km, no azimuth | yes |
 | C9 | No new dependencies beyond the sponsor's packages, pinned: `relate` CLI 1.2.0, `relate-db==1.2.0`, `@relate/relate-wasm@1.2.0` | `projects/hackathon/CLAUDE.md` § Dependencias | yes |
 
 ## Options considered
@@ -80,7 +81,7 @@ graph TB
 | Query module `queries/` | One `.cypher` file per question, with its parameters, read verbatim by every adapter | Cypher (Relate 1.2.0) | R2, R3, R4, R8, R10, R11, R12, R13, R15, R16, R17, R19, R20, R21 |
 | Loader `load/` | Downloads a month from GMN, writes its slice into `store/gmn.rl`, computes islands, cut points, same-site groups, moved codes and "could pair" geometry, then exports the page data by querying the store | Python 3 stdlib + `relate` CLI (`--fetch-params rows=…` + `UNWIND $rows`) | R1, R6, R8, R11, R12, R14, R20, R21 |
 | Store `store/gmn.rl` | The committed graph: 12 monthly slices of stations, pairs and stats | Relate single-file bundle, JSON snapshot codec | R6, R9 |
-| Page `site/` | Opens on running cameras with no partner; take-down, country, changes, could turn, talk to, chain, history; one link per station and country | Static HTML+JS, `@relate/relate-wasm@1.2.0` in `:memory:`, GitHub Pages | R3, R4, R5, R13, R14, R17, R18, R19, R20, R21 |
+| Page `site/` | Opens on the whole network's fragility with running cameras with no partner beside it; take-down, country, changes, could turn, talk to, chain, history; one link per station and country | Static HTML+JS, `@relate/relate-wasm@1.2.0` in `:memory:`, GitHub Pages | R3, R4, R5, R8, R13, R14, R17, R18, R19, R20, R21 |
 | MCP server `mcp/` | Named tools that run the same query files on the committed store | Python + `relate-db==1.2.0`, MCP over stdio | R7 |
 | CLI path | The judge's one command: `relate --load <raw URL of store/gmn.rl> "<query from queries/>"` | `relate` CLI 1.2.0 | R5, R6, R16 |
 | README | Mode (single-file `.rl`) and why, what the graph models, what it cannot know, first take-down, data citation | Markdown | R9 |
@@ -92,15 +93,16 @@ graph TB
 - **Loader**: `python3 load/build.py <YYYYMM>` adds or replaces one month; `python3 load/build.py --rebuild` rebuilds the 12 months. It fails with a non-zero exit when the trajectory file does not have 86 columns.
 - **Page data**: `site/data/stats.json` (12 months of `Station`/`Country` stats, ~17,000 rows) and `site/data/pairs-<YYYYMM>.json` for the latest and previous month; each file is the JSON result of a store query, loaded with `UNWIND $rows`.
 - **Links**: `#/station/<code>`, `#/country/<cc>`, `#/chain/<from>/<to>`, optional `?month=YYYYMM`.
+- **Proof link out** (R3, R17): `https://tammojan.github.io/meteormap/?data=YYYY-MM&stations=A;B`; `;` keeps meteors seen by all listed stations, `data` of 7 characters loads that monthly file. Checked on 2026-11-25: ES001G;ES0013 for 2026-10 shows 144 meteors, equal to our count from the GMN file; the page takes about 40–50 s to load a month (ADR-0005).
 - **`relate-db` rows**: `dict(record)`; a record iterates its keys, so `zip(columns, record)` gives the column names twice (S7).
 
 ### Data
-- **Nodes**: `(:Station {code, country, lat, lon, az, alt, site})`, `(:Country {code, name})`, `(:Month {id})`.
+- **Nodes**: `(:Station {code, country, lat, lon, site, fov100, fov100_date})`, where `lat`/`lon` are GMN's public 2-decimal values (the page export moves them up to 2 km) and `fov100` is the current 100 km polygon from `kml_fov`; `(:Country {code, name})`, `(:Month {id})`.
 - **Relationships**:
-  - `(:Station)-[:SHARED {month, meteors, two_station, sample_ids}]->(:Station)`, stored once per pair with `a.code < b.code`, queried undirected; a pair whose stations share `site` is kept but not counted as a partner.
-  - `(:Station)-[:STATS {nights, detections, orbits, two_station_orbits, partners, island, cut_off, status}]->(:Month)`, `status` ∈ `running_no_partner`, `uploaded_zero`, `no_data`, `paired`, `stopped`, `possibly_moved`.
+  - `(:Station)-[:SHARED {month, meteors, two_station, sample_ids}]->(:Station)`, stored once per pair with `a.code < b.code`, queried undirected; every pair counts as partners whatever the distance (BRIEF Assumptions: 7,423 two-station orbits under 50 km in October 2026); `site` only groups co-located cameras for display.
+  - `(:Station)-[:STATS {nights, detections, orbits, two_station_orbits, partners, island, cut_off, status, az, alt}]->(:Month)`, with `az`/`alt` from the latest dated entry of `GMN_station_coordinates_public.json` on or before the month's last day, `status` ∈ `running_no_partner`, `uploaded_zero`, `no_data`, `paired`, `stopped`, `possibly_moved`.
   - `(:Country)-[:STATS {orbits, two_station_share, running_no_partner, islands}]->(:Month)`.
-  - `(:Station)-[:COULD_PAIR {month, turn_deg, km, estimate: true}]->(:Station)`.
+  - `(:Station)-[:COULD_PAIR {month, turn_deg, km, estimate: true, fov_date}]->(:Station)`, from the intersection of the current 100 km polygons, computed with the standard library.
   - `(:Station)-[:NEAREST_ISLAND {month, km}]->(:Station)` between the closest cameras of two islands.
 - **Size**: one month 9.5 MB; 12 months 33.2 MB with three trajectory IDs per pair, 13.2 MB without (S5).
 - **Owner and retention**: the loader is the only writer; 12 months rolling; GMN keeps the source files.
@@ -114,6 +116,8 @@ graph TB
 | WASM traps (panic) | the page instance is unusable | `isWasmTrap(err)` | the page shows a reload message |
 | Page data and store diverge | page numbers differ from CLI/MCP | parity test in CI | re-run the export step |
 | A browser without WebAssembly | the page cannot answer | feature check at load | the page links to the CLI command and the README's screenshots |
+| `kml_fov` is slow or down (the listing took 11 s, and over 120 s for another client) | `COULD_PAIR` cannot be refreshed | download timeout | each polygon is fetched by name (`<CODE>-100km.kml`, 0.8 s); on failure the previous polygons and their `fov_date` stay |
+| A trajectory row lists a station twice | a pair or multiplicity counted twice | unit test on a repeated station | stations are deduplicated per row and matched exactly |
 | Store grows past 50 MB | GitHub warns; QA-04 broken | size check in CI | drop `sample_ids` to one per pair (S5: 13.2 MB without them) |
 
 ## Spikes
@@ -134,6 +138,7 @@ All spikes ran on 2026-11-23 against the real October 2026 data or a synthetic 1
 - [ADR-0002](adr/0002-committed-store-and-page-data-from-the-store.md) — monthly slices in a committed `.rl`; the page data is exported from the store
 - [ADR-0003](adr/0003-own-mcp-server-with-named-tools.md) — our own MCP server with named tools over `relate-db`
 - [ADR-0004](adr/0004-loader-computes-islands-cut-points-and-geometry.md) — islands, cut points, same-site groups, moved codes and "could pair" are computed by the loader and stored in the graph
+- [ADR-0005](adr/0005-fov-from-gmn-kml-and-proof-links-to-meteor-map.md) — "could pair" from GMN's 100 km field-of-view polygons, and every pair's proof links to the meteor map
 
 ## Out of this design
 - None of R1–R21 is left without a component. Deferred by the BRIEF and not designed here: placing a new camera, months beyond 12, other networks (EDMOND, FRIPON).
