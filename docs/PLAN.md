@@ -191,12 +191,27 @@ At the end of the plan a judge opens a public page with no account and sees the 
   - error: the page serves a 404 page or the store URL answers without the `.rl` bundle → uptime red
   - error: the page's `as_of` is more than 2 days old → uptime red
 
+### U13. Why a camera is lonely, partner lines and last night
+- **Goal:** the loader reads GMN's nightly camera summaries, the weblog status per country and yesterday's daily trajectory file, and stores a probable `cause` per station and last night's pairs; the page shows the cause on a station, draws lines to its partners on the map and lists last night's pairs with the new ones marked; the MCP's `lonely_cameras` and `take_down` return `cause`
+- **Covers:** R22, R23, R24
+- **Files:** `load/gmn.py`, `load/build.py`, `queries/last_night.cypher`, `queries/lonely_cameras.cypher`, `queries/take_down.cypher`, `site/views/station.js`, `site/views/map.js`, `site/views/last_night.js`, `tests/test_cause.py`, `tests/last_night.test.mjs`
+- **Notes:** summary path from fields 1 and 2 of the per-night upload index (`<CC>/<CAM>/<CAM>_<stamp>_detected/`), about 1,400 files of 1.8 KB a day; country list from `status/Rmsindexes/country_dataset.json`; summary values are strings (`"False"`); the cause rule is one pure function with the order decommissioned > upload failure > clock > partial night > cloudy > old calibration > unknown; `SHARED_NIGHT` lives only in `gmn-latest.rl`
+- **Depends on:** U2, U3, U5, U11
+- **Status:** todo
+- **Tests:**
+  - happy: a summary with `clock_synchronized: "False"` for a station running with no partner → cause `clock` with the night and URL. Covers AE24.
+  - edge: no summary for the night (404) → cause `unknown`, the load goes on
+  - edge: weblog says "Decommissioned" and the summary has a bad clock → `decommissioned` (order of the rule)
+  - happy: ES001G picked on October 2026 → one line to ES0013 labelled 144, partner count equal to the take-down's. Covers AE25.
+  - happy: `--partial` with a sample `traj_summary_yesterday.txt` → last night's pairs equal the file's, pairs absent from October marked new. Covers AE26.
+  - error: the weblog times out → causes keep the previous day's value and the job does not fail
+
 ## Cut line
 | Tier | Units | Why |
 |---|---|---|
 | must | U1, U2, U3, U4, U5, U6, U7, U8, U9, U10, U11, U12 | user-directed: all twelve ship by the deadline; with 435 h left, the margin for video, submission and deck is kept by building in dependency order and stopping at U12 before polishing |
-| should | — | — |
-| cut | — | every R1–R21 is covered |
+| should | U13 | added after the web review of 2026-11-25 (D23, D24); built only after U12, and R24 is the first to drop if time runs short |
+| cut | — | every R1–R24 is covered |
 
 ## Risks
 - Downloading 12 real months (59–118 MB of trajectories each; November 2025 is 87 MB) and an older month with a different layout — likelihood: baja (checked on 2026-11-23: November 2025 and May 2026 both have 86 columns) — mitigation: load month by month with the column check of U1 and cache downloads under `research/raw/` — fallback: a shorter window, stated in the README and BRIEF
