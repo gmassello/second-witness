@@ -1,5 +1,6 @@
 import calendar
 import json
+import re
 import time
 import urllib.error
 import urllib.request
@@ -14,6 +15,7 @@ COLUMNS = 86
 COL_STATIONS = 85
 SAMPLE_IDS = 3
 WORKERS = 4
+SUFFIX = re.compile(r"_\d+$")
 
 
 class LayoutError(Exception):
@@ -68,7 +70,7 @@ def read_trajectories(path):
             c = line.split(";")
             if len(c) != COLUMNS:
                 raise LayoutError(f"{path}: {len(c)} columns, expected {COLUMNS}")
-            stations = tuple(sorted({s.strip() for s in c[COL_STATIONS].split(",") if s.strip()}))
+            stations = tuple(sorted({SUFFIX.sub("", s.strip()) for s in c[COL_STATIONS].split(",") if s.strip()}))
             out.append((c[0].strip(), stations))
     return out
 

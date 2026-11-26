@@ -35,6 +35,7 @@ Chosen option "B", because the repo's history grows only by the 10.2 MB fixture,
 * Good: the page is unchanged; it reads `site/data/*.json` from Pages and never the `.rl` (S6).
 * Bad: the 12-month store needs network; offline, only the October fixture answers.
 * Bad: `relate --load` refuses GitHub release URLs by design (spike S8 failed, 2026-11-25), so the one-command `--load` reads the 12-month store from GitHub Pages, where the deploy copies the latest release's `gmn.rl`, and the October fixture from its `blob` URL in the repo; the release URL is for `curl -L` and the MCP.
+* Amended 2026-11-26: GMN rewrites closed monthly files for weeks (October's on 2026-11-13; older months on 2026-10-28), so a month is released on day 15 of the next month, not on day 2, and the monthly job compares the `Last-Modified` of the 12 months in the window with the last release and rebuilds and replaces it when one changed (`--release` replaces an existing tag's asset); the daily job downloads only when the `ETag` changed.
 * To watch: if the monthly job stops, the cron is disabled after 60 days; uptime turns red when `as_of` is over 2 days old and `gh workflow enable` restores it.
 
 ### Confirmation

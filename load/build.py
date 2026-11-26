@@ -90,7 +90,10 @@ def release(store, tag_month, manifest):
         asset = Path(d) / "gmn.rl"
         shutil.copyfile(store, asset)
         notes = f"Second Witness store: GMN trajectories {months[0]}–{months[-1]} as a Relate single-file store. Data: Global Meteor Network, CC BY 4.0."
-        subprocess.run([gh, "release", "create", tag, str(asset), "--repo", REPO, "--title", tag, "--notes", notes, "--latest"], check=True)
+        if subprocess.run([gh, "release", "view", tag, "--repo", REPO], capture_output=True).returncode == 0:
+            subprocess.run([gh, "release", "upload", tag, str(asset), "--repo", REPO, "--clobber"], check=True)
+        else:
+            subprocess.run([gh, "release", "create", tag, str(asset), "--repo", REPO, "--title", tag, "--notes", notes, "--latest"], check=True)
     doc = json.loads(manifest.read_text()) if manifest.exists() else {"releases": []}
     entry = {"tag": tag, "months": months, "bytes": store.stat().st_size,
              "url": f"https://github.com/{REPO}/releases/download/{tag}/gmn.rl"}

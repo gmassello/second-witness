@@ -40,7 +40,7 @@ Chosen option "B", because the meteor map already shows a pair's meteors on a ma
 
 - GET on 2026-11-25: the `kml_fov/` listing answered 200 in 11.3 s (593 KB, about 1,820 stations × 25/70/100 km); `ES001G-100km.kml` answered 200 in 0.8 s with one lon/lat polygon at 100 km and no azimuth. `GMN_station_coordinates_public.json` holds dated entries with `azim_center`, `alt_center`, `fov_w` and `fov_h` (ES001G: 2025-06-22, 127.6°, 36.0°).
 - The meteor map reads `stations` (`;` = all listed) and `data` (7 characters = a monthly file) from the URL. Checked in Chrome on 2026-11-25: `?data=2026-10&stations=ES001G;ES0013` shows 144 meteors, equal to the count of October rows of `traj_summary_monthly_202610.txt` listing both stations; `ES001G;ES0019` shows 0, also equal. The page took about 40–50 s to load the month and fired about 1,800 field-of-view requests, many failing with `ERR_INSUFFICIENT_RESOURCES`, without affecting the count.
-- Tests: U2 (`COULD_PAIR` from the polygons, timeout keeps the previous ones), U4 (positions moved up to 2 km), U5 (every pair carries its link), U7 (the message carries it), U10 (the README credits both tools).
+- Tests: U2 (`COULD_PAIR` from the polygons, timeout keeps the previous ones), U4 (positions as GMN publishes them), U5 (every pair carries its link), U7 (the message carries it), U10 (the README credits both tools).
 
 ## Pros and Cons of the Options
 
@@ -61,4 +61,4 @@ Chosen option "B", because the meteor map already shows a pair's meteors on a ma
 
 ## More Information
 
-Station positions follow the meteor map's practice: an offset inside 2 km. GMN's public file already rounds them to 2 decimals.
+Station positions are GMN's public 2-decimal values, with no offset of our own (amended 2026-11-26): an operator already chooses how precise that public position is, up to about 5 km off (list #12193), an offset per code would split the 947 cameras that share 269 sites in October, and a random one republished every day could be averaged back.

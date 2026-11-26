@@ -156,6 +156,12 @@ class TestLoad(unittest.TestCase):
         self.assertEqual(self.stats("ES001")["orbits"], 1)
         self.assertIsNone(self.shared("ES0001", "ES001"))
 
+    def test_suffixed_duplicate_station_is_the_same_camera(self):
+        write_month(self.src, "202611", [("20261101000000_e", ["ES0001", "ES0002", "ES0002_2"])])
+        self.load("202611")
+        self.assertEqual(self.shared("ES0001", "ES0002", month="202611")["two"], 1)
+        self.assertEqual(cypher(self.store, "MATCH (s:Station) WHERE s.code CONTAINS '_' RETURN s.code AS code"), [])
+
     def test_stats_from_index_and_pointing(self):
         self.load("202610")
         s = self.stats("ES0001")
@@ -178,13 +184,17 @@ class TestLoad(unittest.TestCase):
         self.load("202609", "202610")
         fake = self.tmp / "gh"
         log = self.tmp / "gh.log"
-        fake.write_text(f"#!/bin/sh\necho \"$@\" >> {log}\n")
+        fake.write_text(f"#!/bin/sh\necho \"$@\" >> {log}\n[ \"$2\" = view ] && [ -z \"$TAG_EXISTS\" ] && exit 1\nexit 0\n")
         fake.chmod(0o755)
         manifest = self.tmp / "months.json"
         env = dict(os.environ, GH_BIN=str(fake))
         r = build("--release", "202610", "--store", str(self.store), "--manifest", str(manifest), env=env)
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertIn("release create store-202610", log.read_text())
+        r = build("--release", "202610", "--store", str(self.store), "--manifest", str(manifest), env=dict(env, TAG_EXISTS="1"))
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertRegex(log.read_text(), r"release upload store-202610 \S+ --repo \S+ --clobber")
+        self.assertEqual(len(json.loads(manifest.read_text())["releases"]), 1)
         entry = json.loads(manifest.read_text())["releases"][0]
         self.assertEqual(entry["tag"], "store-202610")
         self.assertEqual(entry["months"], ["202609", "202610"])
