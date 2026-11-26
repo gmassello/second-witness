@@ -7,3 +7,4 @@ __pycache__/
 store/gmn.rl
 store/gmn-latest.rl
 store/*.tmp.rl
+docs/competitors/
