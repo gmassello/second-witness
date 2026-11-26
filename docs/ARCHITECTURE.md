@@ -29,7 +29,7 @@ Wiki basis: simple first, hexagonal core with adapters, ADR per hard-to-reverse 
 | C7 | Deadline 2026-12-11 18:00 PST | `docs/HACKATHON.md` | yes |
 | C8 | GMN data CC BY 4.0, cite the site and Vida et al. 2020, 2021 | https://globalmeteornetwork.org/data/ | yes |
 | C10 | GMN's field-of-view polygons (`kml_fov/<CODE>-100km.kml`, about 2.5 KB each) describe the current pointing only; the dated pointing history is `kml_fov/GMN_station_coordinates_public.json` (2.0 MB, positions rounded to 2 decimals) | GET on 2026-11-25: listing 200 in 11.3 s, 593 KB, about 1,820 stations × 3 heights; `ES001G-100km.kml` 200 in 0.8 s, one lon/lat polygon at 100 km, no azimuth | yes |
-| C11 | GMN's nightly camera summary (`weblog/<CC>/<CAM>/<P>_detected/<P>_observation_summary.json`, ~1.8 KB, string values), the weblog status page per country and the daily trajectory file `traj_summary_yesterday.txt` are public; an old night's summary can be missing | GET on 2026-11-25: BE0002 night 2026-11-24 summary 200; a 2023-03-09 summary 404; `weblog/BE/` lists status and latest recalibration per camera | yes |
+| C11 | GMN's nightly camera summary (`weblog/<CC>/<CAM>/<P>_detected/<P>_observation_summary.json`, ~1.8 KB, string values), the weblog status page per country and the daily trajectory file `traj_summary_data/daily/traj_summary_yesterday.txt` are public; daily files are cut by 1° of solar longitude (`solrange` in the name), not by UTC day, and every trajectory file starts with `# Summary generated on <UTC>`; an old night's summary can be missing | GET on 2026-11-25: BE0002 night 2026-11-24 summary 200; a 2023-03-09 summary 404; `weblog/BE/` lists status and latest recalibration per camera | yes |
 | C9 | No new dependencies beyond the sponsor's packages, pinned: `relate` CLI 1.2.0, `relate-db==1.2.0`, `@relate/relate-wasm@1.2.0` | `projects/hackathon/CLAUDE.md` § Dependencias | yes |
 
 ## Options considered
@@ -101,14 +101,14 @@ graph TB
 - **`relate-db` rows**: `dict(record)`; a record iterates its keys, so `zip(columns, record)` gives the column names twice (S7).
 
 ### Data
-- **Nodes**: `(:Station {code, country, lat, lon, site, fov100, fov100_date})`, where `lat`/`lon` are GMN's public 2-decimal values (the page export moves them up to 2 km) and `fov100` is the current 100 km polygon from `kml_fov`; `(:Country {code, name})`, `(:Month {id, partial, as_of})`.
+- **Nodes**: `(:Station {code, country, lat, lon, site, fov100, fov100_date})`, where `lat`/`lon` are GMN's public 2-decimal values (the page export moves them up to 2 km) and `fov100` is the current 100 km polygon from `kml_fov`; `(:Country {code, name})`, `(:Month {id, partial, as_of, generated})`, where `generated` is GMN's `# Summary generated on` time.
 - **Relationships**:
   - `(:Station)-[:SHARED {month, meteors, two_station, sample_ids}]->(:Station)`, stored once per pair with `a.code < b.code`, queried undirected; every pair counts as partners whatever the distance (BRIEF Assumptions: 7,423 two-station orbits under 50 km in October 2026); `site` only groups co-located cameras for display.
   - `(:Station)-[:STATS {nights, detections, orbits, two_station_orbits, partners, island, cut_off, status, az, alt, last_upload, cause, cause_source}]->(:Month)`, with `cause` ∈ `decommissioned`, `upload_failure`, `clock`, `partial_night`, `cloudy`, `old_calibration`, `unknown` from GMN's nightly summary and weblog status (the first that applies, in that order, decided by one function in `load/gmn.py`; `partial_night` is `total_fits/total_expected_fits` under 0.5), and with `last_upload` from the per-night upload index for the current month (late over 36 h, dark over 3 days, UKMON's thresholds), and with `az`/`alt` from the latest dated entry of `GMN_station_coordinates_public.json` on or before the month's last day, `status` ∈ `running_no_partner`, `uploaded_zero`, `no_data`, `paired`, `stopped`, `possibly_moved`.
   - `(:Country)-[:STATS {orbits, two_station_share, running_no_partner, islands}]->(:Month)`.
   - `(:Station)-[:COULD_PAIR {month, turn_deg, km, estimate: true, fov_date}]->(:Station)`, from the intersection of the current 100 km polygons (the first `<Polygon>` of each KML: the footprint at 100 km, mask-aware, coordinates in lon,lat order), computed with the standard library, only for cameras 5–600 km apart (the solver's pair range, `CorrelateEngine.py`).
   - `(:Station)-[:NEAREST_ISLAND {month, km}]->(:Station)` between the closest cameras of two islands.
-  - `(:Station)-[:SHARED_NIGHT {night, meteors}]->(:Station)`, last night's pairs from `traj_summary_yesterday.txt`, only in the published partial store.
+  - `(:Station)-[:SHARED_NIGHT {night, meteors}]->(:Station)`, the pairs of the latest daily file `traj_summary_yesterday.txt`, with `night` the UTC range its trajectories span, only in the published partial store.
 - **Size**: measured in U1 on the real data with up to three trajectory IDs per pair: October 2026 alone 10.2 MB (1,444 stations, 25,525 pairs); November 2025 – October 2026 31.1 MB (16,061–27,941 pairs a month), built in 17 s from the cache. S5's synthetic estimate was 33.2 MB.
 - **Owner and retention**: the loader is the only writer; 12 months rolling; GMN keeps the source files.
 - **Nothing personal**: station codes only; no operator names or contacts (BRIEF Safety).
@@ -124,7 +124,7 @@ graph TB
 | `kml_fov` is slow or down (the listing took 11 s, and over 120 s for another client) | `COULD_PAIR` cannot be refreshed | download timeout | each polygon is fetched by name (`<CODE>-100km.kml`, 0.8 s); on failure the previous polygons and their `fov_date` stay |
 | A trajectory row lists a station twice | a pair or multiplicity counted twice | unit test on a repeated station | stations are deduplicated per row and matched exactly |
 | The weblog or a nightly summary is slow, down or missing | no fresh cause | download timeout or 404 | the cause stays `unknown` or keeps the previous day's value, with its night shown |
-| The daily job fails or GMN has not updated | the page keeps the previous day's partial month | the page shows `as_of`; uptime goes red when `as_of` is more than 2 days old | re-run the job; closed months are never touched |
+| The daily job fails or GMN has not updated | the page keeps the previous day's partial month | the page shows `as_of`; uptime goes red when `as_of` or `Month.generated` is more than 2 days old | re-run the job; closed months are never touched |
 | The release asset grows past 2 GB, or the tracked repo past 50 MB | the upload fails; QA-04 broken | size check in CI and in the monthly job | drop `sample_ids` to one per pair (S5: 13.2 MB without them) |
 | GitHub disables the scheduled workflows after 60 days without activity | the daily and monthly jobs stop | uptime red when `as_of` is more than 2 days old | `gh workflow enable`; the monthly `data/months.json` commit normally prevents it |
 

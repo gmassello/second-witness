@@ -23,7 +23,7 @@ At the end of the plan a judge opens a public page with no account and sees the 
 - **Goal:** one command downloads a month of GMN trajectories, station coordinates and the per-night upload index and writes that month's slice into `gmn.rl` (stations, countries, months, `SHARED` pairs with meteors, two-station count and up to three trajectory IDs, `STATS` per station); a rebuild command produces the 12-month store; a closed month is uploaded as the asset of a GitHub Release `store-<YYYYMM>` and listed in `data/months.json`; the October 2026 fixture is committed once
 - **Covers:** R1, R6 · F3
 - **Files:** `load/build.py`, `load/gmn.py`, `store/gmn-202610.rl`, `data/months.json`, `.gitignore` (`store/gmn.rl`), `tests/test_load.py`
-- **Notes:** write with batched `UNWIND $rows` and an index on `Station.code`, 1,000 rows per statement and one transaction per batch (Relate ADR-0155: one statement per node is quadratic; issue #322: a single commit over 64 MB of WAL fails); never match on `id()`; delete the old `.rl` first, then `flush()` and `close()` so the zip is complete. `CREATE INDEX` only registers a name in Relate (ADR-0040); property lookups use automatic indexes. Parse `traj_summary` with the `;` delimiter, strip each field (the writer uses `"; "` and ends lines in `"\n\r"`), skip `#` lines; the station list is the last column and already excludes stations the solver set aside (`ignore_station`)
+- **Notes:** write with batched `UNWIND $rows` and an index on `Station.code`, 1,000 rows per statement and one transaction per batch (Relate ADR-0155: one statement per node is quadratic; issue #322: a single commit over 64 MB of WAL fails); never match on `id()`; delete the old `.rl` first, then `flush()` and `close()` so the zip is complete. `CREATE INDEX` only registers a name in Relate (ADR-0040); property lookups use automatic indexes. Parse `traj_summary` with the `;` delimiter, strip each field (the writer uses `"; "` and ends lines in `"\n\r"`), skip `#` lines; the station list is the last column and already excludes stations the solver set aside (`ignore_station`); columns are read by position (stations at 85 of 86) and a changed count fails loudly, while reading the two-row header by name is deferred
 - **Depends on:** —
 - **Status:** done
 - **Tests:**
@@ -183,19 +183,20 @@ At the end of the plan a judge opens a public page with no account and sees the 
 ### U12. CI and uptime
 - **Goal:** every push runs the gates of `## Commands`; a scheduled job checks the public page, Pages' `gmn.rl` and the release URL `releases/latest/download/gmn.rl` every 6 h and goes red if either stops answering with its own content
 - **Covers:** —
-- **Files:** `.github/workflows/ci.yml`, `.github/workflows/uptime.yml`
+- **Files:** `.github/workflows/ci.yml`, `.github/workflows/uptime.yml`, `load/gmn.py`, `load/build.py` (`Month.generated` from the file's `# Summary generated on` line)
 - **Depends on:** — (CI); U11 (uptime)
 - **Status:** todo
 - **Tests:**
   - happy: push to main → CI green; manual run of uptime → green
   - error: the page serves a 404 page or the store URL answers without the `.rl` bundle → uptime red
   - error: the page's `as_of` is more than 2 days old → uptime red
+  - error: `as_of` is today but `Month.generated` is more than 2 days old (GMN stopped updating) → uptime red
 
 ### U13. Why a camera is lonely, partner lines and last night
 - **Goal:** the loader reads GMN's nightly camera summaries, the weblog status per country and yesterday's daily trajectory file, and stores a probable `cause` per station and last night's pairs; the page shows the cause on a station, draws lines to its partners on the map and lists last night's pairs with the new ones marked; the MCP's `lonely_cameras` and `take_down` return `cause`
 - **Covers:** R22, R23, R24
 - **Files:** `load/gmn.py`, `load/build.py`, `queries/last_night.cypher`, `queries/lonely_cameras.cypher`, `queries/take_down.cypher`, `site/views/station.js`, `site/views/map.js`, `site/views/last_night.js`, `tests/test_cause.py`, `tests/last_night.test.mjs`
-- **Notes:** summary path from fields 1 and 2 of the per-night upload index (`<CC>/<CAM>/<CAM>_<stamp>_detected/`), about 1,400 files of 1.8 KB a day; country list from `status/Rmsindexes/country_dataset.json`; summary values are strings (`"False"`); the cause rule is one pure function with the order decommissioned > upload failure > clock > partial night > cloudy > old calibration > unknown; `SHARED_NIGHT` lives only in `gmn-latest.rl`
+- **Notes:** summary path from fields 1 and 2 of the per-night upload index (`<CC>/<CAM>/<CAM>_<stamp>_detected/`), about 1,400 files of 1.8 KB a day; country list from `status/Rmsindexes/country_dataset.json`; summary values are strings (`"False"`); the cause rule is one pure function with the order decommissioned > upload failure > clock > partial night > cloudy > old calibration > unknown; `SHARED_NIGHT` lives only in `gmn-latest.rl`; the daily file is cut by 1° of solar longitude, not by UTC day (D25), so the view's label is the min and max "Beginning UTC Time" of its rows, never "yesterday"
 - **Depends on:** U2, U3, U5, U11
 - **Status:** todo
 - **Tests:**
@@ -204,6 +205,7 @@ At the end of the plan a judge opens a public page with no account and sees the 
   - edge: weblog says "Decommissioned" and the summary has a bad clock → `decommissioned` (order of the rule)
   - happy: ES001G picked on October 2026 → one line to ES0013 labelled 144, partner count equal to the take-down's. Covers AE25.
   - happy: `--partial` with a sample `traj_summary_yesterday.txt` → last night's pairs equal the file's, pairs absent from October marked new. Covers AE26.
+  - edge: a sample daily file whose trajectories cross UTC midnight → the label names both dates
   - error: the weblog times out → causes keep the previous day's value and the job does not fail
 
 ## Cut line
