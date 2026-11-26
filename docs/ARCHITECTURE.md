@@ -9,9 +9,9 @@ One set of Cypher queries over one Relate store, used through three adapters —
 | ID | Quality attribute | Scenario (source, stimulus, environment, response) | Measure | From |
 |---|---|---|---|---|
 | QA-01 | Installability | A judge opens the public page on broadband with no account, key or server; the first take-down answer appears | ≤ 10 s from first byte (S6: 2.5 MB gzipped WASM + ~1.5 MB data + 1.1 s load per month) | R5, R13 |
-| QA-02 | Installability | A judge runs the README's one command against the store's release URL | ≤ 5 s on broadband (S5: 0.20 s with the 33 MB store served locally) | R5, R6 |
+| QA-02 | Installability | A judge runs the README's one command against the store's public URL (the October fixture in the repo, or the 12-month store on Pages) | ≤ 5 s on broadband (S5: 0.20 s with the 33 MB store served locally) | R5, R6 |
 | QA-03 | Time behaviour | A coordinator presses "Take it down" on any station of the latest month | ≤ 1 s in the browser (S6: 7 ms) | R2 |
-| QA-04 | Capacity | The store holds 12 months and the repo does not grow with them | release asset ≤ 2 GB (S5: 33.2 MB); tracked repo ≤ 50 MB, the October fixture about 4 MB (ADR-0007) | R6, R20 |
+| QA-04 | Capacity | The store holds 12 months and the repo does not grow with them | release asset ≤ 2 GB (U1, 2026-11-25: `store-202610` with 12 real months, 31.1 MB); tracked repo ≤ 50 MB, the October fixture 10.2 MB (ADR-0007) | R6, R20 |
 | QA-05 | Functional correctness | The page, the MCP tools and the CLI answer HU000B, ES000C and US004L | 100% equal rows; HU000B = 899, ES000C = 31 nights / 1,797 detections / 0 partners, 115 running with no partner (S2, S7) | R7, R16, AE6, AE16 |
 | QA-06 | Modifiability | GMN publishes a new month | one command rebuilds the store and the page data | R6 |
 
@@ -68,7 +68,7 @@ graph TB
   load[load/ — Python stdlib + relate CLI: GMN files → gmn.rl → site/data/*.json]
   site[site/ — static HTML+JS + Relate WASM :memory:, loads site/data at open]
   mcp[mcp/ — Python + relate-db, stdio, named tools]
-  cli[relate CLI — relate --load release URL of gmn.rl]
+  cli[relate CLI — relate --load the fixture's blob URL or Pages gmn.rl]
   store[(gmn.rl release asset — 12 monthly slices; store/gmn-202610.rl fixture)]
   load --> store
   load --> site
@@ -87,14 +87,14 @@ graph TB
 | Store `gmn.rl` | The graph: 12 monthly slices of stations, pairs and stats, published as the asset of the latest GitHub Release; the repo commits only the October 2026 fixture `store/gmn-202610.rl` (ADR-0007) | Relate single-file bundle, JSON snapshot codec | R6, R9 |
 | Page `site/` | Opens on the whole network's fragility with running cameras with no partner beside it; take-down, country, changes, could turn, talk to, chain, history; one link per station and country | Static HTML+JS, `@relate/relate-wasm@1.2.0` in `:memory:`, GitHub Pages | R3, R4, R5, R8, R13, R14, R17, R18, R19, R20, R21, R22, R23, R24 |
 | MCP server `mcp/` | Named tools that run the same query files on a local `.rl` (the October fixture by default, or the downloaded release asset) | Python + `relate-db==1.2.0`, MCP over stdio | R7 |
-| CLI path | The judge's one command: `relate --load https://github.com/gmassello/second-witness/releases/latest/download/gmn.rl "<query from queries/>"` | `relate` CLI 1.2.0 | R5, R6, R16 |
+| CLI path | The judge's one command: `relate --load https://github.com/gmassello/second-witness/blob/main/store/gmn-202610.rl "<query from queries/>"` for October, or the 12-month store at `https://gmassello.github.io/second-witness/gmn.rl`, which the Pages deploy copies from the latest release (S8: `--load` refuses release URLs) | `relate` CLI 1.2.0 | R5, R6, R16 |
 | README | Mode (single-file `.rl`) and why, what the graph models, what it cannot know, first take-down, data citation | Markdown | R9 |
 | Parity test | Runs each query through WASM, `relate-db` and the CLI and compares rows; anchors the BRIEF's numbers | Node + Python test | R16, AE6, AE16 |
 
 ### Contracts
 - **Queries**: `queries/<name>.cypher`, one statement, parameters `$station`, `$country`, `$month`, `$other`. Names: `lonely_cameras`, `take_down`, `country`, `changes`, `could_turn`, `talk_to`, `chain`, `station_history`, `country_history`, `search`, `last_night`; `lonely_cameras` and `take_down` also return `cause` and `cause_source`. Adapters never edit or concatenate them.
 - **MCP tools** (stdio, `readOnlyHint: true`): `lonely_cameras {country?, month?}`, `take_down {station, month?}`, `country_report {country, month?}`, `who_could_turn {station, month?}`, `talk_to {station, month?}`, `witness_chain {from, to, month?}`, `station_history {station}`. Each returns `{query, parameters, rows}` so the agent sees which query answered.
-- **Loader**: `python3 load/build.py <YYYYMM>` adds or replaces one month in the latest release's `gmn.rl`, uploads it as the asset of a new release `store-<YYYYMM>` and commits `data/months.json` (each month's id, release URL and size), the commit that keeps the scheduled workflows enabled (ADR-0007); `python3 load/build.py --rebuild` rebuilds the 12 months; `python3 load/build.py --partial` loads the current month as of today into a copy of the latest release's store, published on GitHub Pages as `gmn-latest.rl` and never released or committed (ADR-0006). It fails with a non-zero exit when the trajectory file does not have 86 columns.
+- **Loader**: `python3 load/build.py <YYYYMM>…` adds or replaces months in `store/gmn.rl` (gitignored; `--fresh --store store/gmn-202610.rl` writes the committed fixture); `--rebuild <YYYYMM>` rebuilds the 12 months ending there; `--release <YYYYMM>` uploads the store as the asset `gmn.rl` of release `store-<YYYYMM>` and writes `data/months.json` (tag, months, URL, bytes), whose commit keeps the scheduled workflows enabled (ADR-0007); `--partial [--as-of DATE]` loads the current month into a copy of the store as `store/gmn-latest.rl`, published on Pages and never released or committed (ADR-0006). Writes go through one `relate query` stdin session per load, 1,000 rows per `UNWIND` statement, on a temporary copy renamed at the end, so a failure leaves the store untouched. It stops with a non-zero exit before writing when a trajectory file does not have 86 columns.
 - **Page data**: `site/data/stats.json` (12 months of `Station`/`Country` stats, ~17,000 rows) and `site/data/pairs-<YYYYMM>.json` for the latest and previous month; each file is the JSON result of a store query, loaded with `UNWIND $rows`.
 - **Links**: `#/station/<code>`, `#/country/<cc>`, `#/chain/<from>/<to>`, optional `?month=YYYYMM`.
 - **Proof link out** (R3, R17): `https://tammojan.github.io/meteormap/?data=YYYY-MM&stations=A;B`; `;` keeps meteors seen by all listed stations, `data` of 7 characters loads that monthly file. Checked on 2026-11-25: ES001G;ES0013 for 2026-10 shows 144 meteors, equal to our count from the GMN file; the page takes about 40–50 s to load a month (ADR-0005).
@@ -109,7 +109,7 @@ graph TB
   - `(:Station)-[:COULD_PAIR {month, turn_deg, km, estimate: true, fov_date}]->(:Station)`, from the intersection of the current 100 km polygons (the first `<Polygon>` of each KML: the footprint at 100 km, mask-aware, coordinates in lon,lat order), computed with the standard library, only for cameras 5–600 km apart (the solver's pair range, `CorrelateEngine.py`).
   - `(:Station)-[:NEAREST_ISLAND {month, km}]->(:Station)` between the closest cameras of two islands.
   - `(:Station)-[:SHARED_NIGHT {night, meteors}]->(:Station)`, last night's pairs from `traj_summary_yesterday.txt`, only in the published partial store.
-- **Size**: one month 9.5 MB; 12 months 33.2 MB with three trajectory IDs per pair, 13.2 MB without (S5).
+- **Size**: measured in U1 on the real data with up to three trajectory IDs per pair: October 2026 alone 10.2 MB (1,444 stations, 25,525 pairs); November 2025 – October 2026 31.1 MB (16,061–27,941 pairs a month), built in 17 s from the cache. S5's synthetic estimate was 33.2 MB.
 - **Owner and retention**: the loader is the only writer; 12 months rolling; GMN keeps the source files.
 - **Nothing personal**: station codes only; no operator names or contacts (BRIEF Safety).
 
@@ -137,7 +137,7 @@ graph TB
 | S4 | Islands and cut points in pure Cypher within 5 s | reachability from US004L; `shortestPath` with `NONE(m IN nodes(p) WHERE m = x)` from a hub to every station | US004L cuts off 86 | **failed**: plain reachability 50 ms (176 stations), but the predicate query ran over 10 min and was stopped | loader computes `island` and `cut_off` per station and month and stores them; pages read them with Cypher (ADR-0004) |
 | S5 | 12 months fit the repo and load fast | synthetic store: 12 × October's pairs | ≤ 50 MB; `--load` from URL + take-down ≤ 5 s | **passed**: 33.2 MB (13.2 MB without IDs; 18.5 MB gzipped); `--load http://127.0.0.1/y12.rl` + take-down 0.20 s; take-down on the 12-month store 0.16 s | one trajectory ID per pair |
 | S6 | The page can hold a month and answer fast | Node 24, `@relate/relate-wasm@1.2.0`, `:memory:`, October via `UNWIND $rows` | load ≤ 5 s; take-down ≤ 1 s | **passed**: WASM 6.9 MB (2.5 MB gzipped), init 31 ms, load 1,064 ms, queries 2–7 ms, chain 3 ms; no API takes `.rl` bytes | — |
-| S8 | `relate --load` follows a GitHub Release redirect | a small `.rl` uploaded to a test release; `relate --load https://github.com/<repo>/releases/download/<tag>/test.rl` + take-down | the take-down answers | **pending**: first step of U1 | download the asset with `curl -L` and `relate --database` the local file |
+| S8 | `relate --load` follows a GitHub Release redirect | a small `.rl` uploaded to a test release `s8-test` (deleted after); `relate --load https://github.com/gmassello/second-witness/releases/download/s8-test/u.rl` + count | the count answers | **failed** (2026-11-25): Relate refuses it by design, "a GitHub releases URL is not a single-file store; the blob or raw form fetches the file's bytes"; the CLI wrote a 2,500-node `.rl` in batches of 1,000 through one `relate query` stdin session | the release stays the archive; the Pages deploy serves the latest asset as `gmn.rl` for `--load`; offline, `curl -L -o store/gmn.rl <release url>` and `relate --database store/gmn.rl` |
 | S7 | `relate-db` gives the CLI's rows | `relate.connect("oct.rl", read_only=True)`, three queries, compared to `relate --mode jsonl` | equal rows | **passed**: equal for HU000B, ES000C and US004L's partners, 0.3–0.4 ms | — |
 
 All spikes ran on 2026-11-23 against the real October 2026 data or a synthetic 12-month copy of it; their scripts stay in the session scratchpad and are not part of the repo.

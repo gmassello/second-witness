@@ -25,12 +25,12 @@ At the end of the plan a judge opens a public page with no account and sees the 
 - **Files:** `load/build.py`, `load/gmn.py`, `store/gmn-202610.rl`, `data/months.json`, `.gitignore` (`store/gmn.rl`), `tests/test_load.py`
 - **Notes:** write with batched `UNWIND $rows` and an index on `Station.code`, 1,000 rows per statement and one transaction per batch (Relate ADR-0155: one statement per node is quadratic; issue #322: a single commit over 64 MB of WAL fails); never match on `id()`; delete the old `.rl` first, then `flush()` and `close()` so the zip is complete. `CREATE INDEX` only registers a name in Relate (ADR-0040); property lookups use automatic indexes. Parse `traj_summary` with the `;` delimiter, strip each field (the writer uses `"; "` and ends lines in `"\n\r"`), skip `#` lines; the station list is the last column and already excludes stations the solver set aside (`ignore_station`)
 - **Depends on:** —
-- **Status:** todo
+- **Status:** done
 - **Tests:**
   - happy: October 2026 files → the `SHARED` weight between two stations equals the count of trajectories in `traj_summary_monthly_202610.txt` whose participating stations include both. Covers AE1.
   - happy: a fresh clone with no network and no keys → the CLI answers a take-down from the committed `store/gmn-202610.rl`. Covers AE5.
-  - happy: spike S8 first → `relate --load` on a test release URL answers a take-down; if not, the README downloads with `curl -L` and opens the local file
-  - happy: `build.py 202611` → a release `store-202611` whose `gmn.rl` holds 12 months, `data/months.json` lists it, and the repo's tracked size grows by under 10 KB
+  - happy: spike S8 first → `relate --load` on a test release URL answers a take-down; if not, the README downloads with `curl -L` and opens the local file (ran 2026-11-25: refused by Relate; the fixture's blob URL and Pages serve `--load`)
+  - happy: `build.py --rebuild 202610` then `--release 202610` → a release `store-202610` whose `gmn.rl` holds 12 months, `data/months.json` lists it, and no `.rl` but the fixture is tracked (ran 2026-11-25: 12 months, 31.1 MB; November follows on 2026-12-02)
   - edge: a month already in the store is loaded again → its slice is replaced, the other months are unchanged
   - happy: `--partial` on 2026-11-25 → the latest month is `202611` with `partial: true` and `as_of: 2026-11-25`, its counts equal that day's `traj_summary_monthly_202611.txt`, the 12 closed months, the latest release and the committed fixture are unchanged. Covers AE23.
   - edge: a station in the trajectories but missing from the coordinates file → stored with null position, not dropped
@@ -155,7 +155,7 @@ At the end of the plan a judge opens a public page with no account and sees the 
   - error: a tool called with an unknown station → an empty result with the station named, `isError` false
 
 ### U10. README
-- **Goal:** the README shows the architecture diagram (mermaid, rendered by GitHub: GMN → loader → release `gmn.rl` → queries → page / MCP / CLI), says the store uses single-file `.rl` mode and why, what the graph models and cannot know, the judge's one command (`relate --load` of `releases/latest/download/gmn.rl`) and first take-down, the October fixture for offline use, and the CC BY 4.0 citation
+- **Goal:** the README shows the architecture diagram (mermaid, rendered by GitHub: GMN → loader → release `gmn.rl` → queries → page / MCP / CLI), says the store uses single-file `.rl` mode and why, what the graph models and cannot know, the judge's one command (`relate --load` of the October fixture's blob URL, and of Pages' `gmn.rl` for 12 months) and first take-down, `curl -L` of the release asset for offline use, and the CC BY 4.0 citation
 - **Covers:** R9 · F3
 - **Files:** `README.md`, `tests/test_readme.py`
 - **Depends on:** U3
@@ -168,7 +168,7 @@ At the end of the plan a judge opens a public page with no account and sees the 
   - error: a number in the README that differs from the test's result → the test fails naming it
 
 ### U11. Deploy to GitHub Pages
-- **Goal:** `site/` is published on GitHub Pages at a public URL that opens without a login, and the URL is in `PENDING.md`; the same workflow runs daily on a schedule, loads the current month with `--partial` and publishes the page data and `gmn-latest.rl` without committing them, starting from the latest release's `gmn.rl`; a monthly workflow (day 2) runs `build.py <previous month>` with `permissions: contents: write`, creates the release and commits `data/months.json`
+- **Goal:** `site/` is published on GitHub Pages at a public URL that opens without a login, and the URL is in `PENDING.md`; the same workflow runs daily on a schedule, loads the current month with `--partial` and publishes the page data and `gmn-latest.rl` without committing them, starting from the latest release's `gmn.rl`, which it also publishes unchanged as Pages' `gmn.rl` for `relate --load` (S8); a monthly workflow (day 2) runs `build.py <previous month>` with `permissions: contents: write`, creates the release and commits `data/months.json`
 - **Covers:** R5 · F3
 - **Files:** `.github/workflows/pages.yml`, `.github/workflows/monthly.yml`, `PENDING.md`
 - **Depends on:** U5
@@ -181,7 +181,7 @@ At the end of the plan a judge opens a public page with no account and sees the 
   - error: the data files missing from the deploy → the page shows "data not found" and the workflow fails its content check
 
 ### U12. CI and uptime
-- **Goal:** every push runs the gates of `## Commands`; a scheduled job checks the public page and the release URL `releases/latest/download/gmn.rl` every 6 h and goes red if either stops answering with its own content
+- **Goal:** every push runs the gates of `## Commands`; a scheduled job checks the public page, Pages' `gmn.rl` and the release URL `releases/latest/download/gmn.rl` every 6 h and goes red if either stops answering with its own content
 - **Covers:** —
 - **Files:** `.github/workflows/ci.yml`, `.github/workflows/uptime.yml`
 - **Depends on:** — (CI); U11 (uptime)
