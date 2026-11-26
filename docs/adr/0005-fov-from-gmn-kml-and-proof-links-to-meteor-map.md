@@ -2,7 +2,7 @@
 status: accepted
 date: 2026-11-25
 decision-makers: [German]
-consulted: [Ferran Casarramona (GMN list #16524)]
+consulted: [the operator of ES001G and ES001H (GMN list #16524)]
 informed: []
 ---
 
@@ -10,7 +10,7 @@ informed: []
 
 ## Context and Problem Statement
 
-An operator on the GMN list found his camera's partners in GMN's meteor map (BRIEF D21). Two volunteer tools already draw GMN's data: Tammo Jan Dijkema's meteor map (https://github.com/tammojan/meteormap, GPL-3.0, a single static page) and Milan Kalina's meteorview (https://github.com/satmonkey/GMN_meteormap, MIT, a Python Panel server). Neither counts pairs or models the network. R14 needs field-of-view geometry, R3 needs a proof a coordinator trusts, and the README must say how Second Witness relates to them. What do we take from them?
+An operator on the GMN list found his camera's partners in GMN's meteor map (BRIEF D21). Volunteer tools already draw GMN's data, among them the meteor map (GPL-3.0, a single static page). None counts pairs or models the network. R14 needs field-of-view geometry, R3 needs a proof a coordinator trusts, and the README must say how Second Witness relates to them. What do we take from them?
 
 ## Decision Drivers
 
@@ -61,4 +61,4 @@ Chosen option "B", because the meteor map already shows a pair's meteors on a ma
 
 ## More Information
 
-Station positions follow the meteor map's practice: a random offset inside 2 km. meteorview moves them about 400 m. GMN's public file already rounds them to 2 decimals.
+Station positions follow the meteor map's practice: an offset inside 2 km. GMN's public file already rounds them to 2 decimals.

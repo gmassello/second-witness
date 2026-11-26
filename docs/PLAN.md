@@ -23,7 +23,7 @@ At the end of the plan a judge opens a public page with no account and sees the 
 - **Goal:** one command downloads a month of GMN trajectories, station coordinates and the per-night upload index and writes that month's slice into `gmn.rl` (stations, countries, months, `SHARED` pairs with meteors, two-station count and up to three trajectory IDs, `STATS` per station); a rebuild command produces the 12-month store; a closed month is uploaded as the asset of a GitHub Release `store-<YYYYMM>` and listed in `data/months.json`; the October 2026 fixture is committed once
 - **Covers:** R1, R6 · F3
 - **Files:** `load/build.py`, `load/gmn.py`, `store/gmn-202610.rl`, `data/months.json`, `.gitignore` (`store/gmn.rl`), `tests/test_load.py`
-- **Notes:** write with batched `UNWIND $rows` and an index on `Station.code`, 1,000 rows per statement and one transaction per batch (Relate ADR-0155: one statement per node is quadratic; issue #322: a single commit over 64 MB of WAL fails); never match on `id()`; delete the old `.rl` first, then `flush()` and `close()` so the zip is complete. `CREATE INDEX` only registers a name in Relate (ADR-0040); property lookups use automatic indexes. Parse `traj_summary` with the `;` delimiter, strip each field (the writer uses `"; "` and ends lines in `"\n\r"`), skip `#` lines; the station list is the last column and already excludes stations the solver set aside (`ignore_station`); columns are read by position (stations at 85 of 86) and a changed count fails loudly, while reading the two-row header by name is deferred
+- **Notes:** write with batched `UNWIND $rows` and an index on `Station.code`, 1,000 rows per statement and one transaction per batch (Relate ADR-0155: one statement per node is quadratic; issue #322: a single commit over 64 MB of WAL fails); never match on `id()`; delete the old `.rl` first, then `flush()` and `close()` so the zip is complete. `CREATE INDEX` only registers a name in Relate (ADR-0040); property lookups use automatic indexes. Parse `traj_summary` with the `;` delimiter, strip each field (the writer uses `"; "` and ends lines in `"\n\r"`), skip `#` lines; the station list is the last column and already excludes stations the solver set aside (`ignore_station`); columns are read by position (stations at 85 of 86) and a changed count fails loudly, and reading the two-row header by name is U14
 - **Depends on:** —
 - **Status:** done
 - **Tests:**
@@ -38,7 +38,7 @@ At the end of the plan a judge opens a public page with no account and sees the 
   - error: a trajectory file with a column count other than 86 → non-zero exit naming the count, store untouched
 
 ### U2. Graph properties computed by the loader
-- **Notes:** islands and cut points in one iterative Tarjan pass (no recursion), O(N+E), with DFS subtree sizes: dedupe parallel edges, update the parent's `low` and size when the child is popped, a root needs two DFS children, use `disc[w]` for back edges; store both `cut_off` (stations outside the largest remaining piece) and the smallest piece, and keep whichever gives US004L = 86. rakiza's node-removal BFS is O(N²·(N+E)) and is not used. "Could pair": the first `<Polygon>` of each KML is the 100 km footprint, lon,lat order, ring not closed, longitudes may pass ±180, may be non-convex; score overlap by sampling points with ray-casting point-in-polygon, not by clipping. WesternMeteorPyLib's `stationsCommonVolume` (MIT) is the 3D reference, too slow to run per station
+- **Notes:** islands and cut points in one iterative Tarjan pass (no recursion), O(N+E), with DFS subtree sizes: dedupe parallel edges, update the parent's `low` and size when the child is popped, a root needs two DFS children, use `disc[w]` for back edges; store both `cut_off` (stations outside the largest remaining piece) and the smallest piece, and keep whichever gives US004L = 86. A node-removal BFS is O(N²·(N+E)) and is not used. "Could pair": the first `<Polygon>` of each KML is the 100 km footprint, lon,lat order, ring not closed, longitudes may pass ±180, may be non-convex; score overlap by sampling points with ray-casting point-in-polygon, not by clipping, and report it in km² (an area in square degrees favours high latitudes, D26). The upload index stamp is the night's recording start, about 17 h before the upload (D26): late, dark and silent count 36 h, 3 days and 7 days from the stamp plus that offset, measured once against weblog `Last updated`. WesternMeteorPyLib's `stationsCommonVolume` (MIT) is the 3D reference, too slow to run per station
 - **Goal:** after writing a month, the loader stores per station `island`, `cut_off`, `site` and `status` (including `possibly_moved`), plus `COULD_PAIR` (marked estimate) and `NEAREST_ISLAND` relationships, all readable with Cypher
 - **Covers:** R8, R10, R11, R12, R14
 - **Files:** `load/graph.py`, `load/geometry.py`, `tests/test_graph.py`
@@ -54,7 +54,10 @@ At the end of the plan a judge opens a public page with no account and sees the 
   - happy: ES000C with the 100 km polygons from `kml_fov` → at least one `COULD_PAIR` whose `fov_date` is the fetch date. Covers AE14.
   - edge: a station with no `<CODE>-100km.kml` → no `COULD_PAIR`, `fov100` null
   - edge: two cameras 3 km apart, or 700 km apart, with overlapping polygons → no `COULD_PAIR` (solver range 5–600 km)
-  - edge: the current month with a station whose last upload is 2 days old → `late`; 4 days old → `dark`
+  - edge: the current month with a station whose last index stamp is 40 h old → still running (a healthy camera before its next upload); 3 days old → `late`; 4 days old → `dark`; 8 days old → `silent`
+  - edge: a 100 km polygon whose ring crosses itself → overlap still scored, no crash
+  - edge: a closed month shown with a pointing entry newer than that month → `COULD_PAIR` marked `aim_changed`
+  - error: the `kml_fov` listing returns fewer than half the previous polygons → the previous polygons stay
   - error: `kml_fov` times out → the previous polygons and `fov_date` stay, the loader still writes the month
 
 ### U3. Query module and the brief's numbers
@@ -87,12 +90,13 @@ At the end of the plan a judge opens a public page with no account and sees the 
   - edge: only one month in the store → no previous-month file, the page shows "no earlier month"
   - error: store over 50 MB → the size check fails with the size
   - edge: every exported position differs from GMN's public value and lies within 2 km of it
+  - edge: two exports on different days → each station's exported position is identical (offset seeded by its code, so averaging days cannot recover it)
 
 ### U5. Page: lonely cameras, take-down and links
 - **Goal:** the static page loads Relate WASM and the latest data, opens on the whole network's fragility (islands, the stations whose loss costs the most or cuts an island) with running cameras with no partner beside it, lets the user search and take any station down with its proof, gives every station and country its own link, and carries the language, theme and plain/technical toggles; the same queries on WASM return the CLI's rows
 - **Covers:** R2, R3, R4, R5, R8, R13, R18 · F1, F3
 - **Files:** `site/index.html`, `site/app.js`, `site/text.js`, `site/style.css`, `site/vendor/relate-wasm/`, `tests/page.test.mjs`
-- **Notes:** no build step, as `ZNLong2203/precedent` and `ikooq/dropnet` do: `await init()`, `new RelateDb()`, fetch the JSON, load it with chunked `UNWIND $rows` (about 700 rows per statement), and `JSON.parse(db.execute(q, JSON.stringify(params)))` checking `.error`, since engine errors do not throw; recreate the instance after `isWasmTrap`. Vendor exactly `relate.js`, `relate_bg.wasm` (7.2 MB), `trap.js` and `snippets/relate-wasm-dd0c6225f894802b/js/opfs.js` from `@relate/relate-wasm@1.2.0` with its Apache-2.0 `LICENSE`, and patch `trap.js` with 1.3.0's regex ("too much recursion", "recursive use of an object") so Firefox traps are caught. No worker: paint a loading state, then load pairs in batches of about 5,000 positional rows, yielding between batches; add a worker only if a phone takes over 2 s. Add `?v=N` to data and query fetches (Pages caches for minutes). Chain queries use relationship types in the pattern, never `NONE()`/`WHERE` on edges
+- **Notes:** no build step: `await init()`, `new RelateDb()`, fetch the JSON, load it with chunked `UNWIND $rows` (about 700 rows per statement), and `JSON.parse(db.execute(q, JSON.stringify(params)))` checking `.error`, since engine errors do not throw; recreate the instance after `isWasmTrap`. Vendor exactly `relate.js`, `relate_bg.wasm` (7.2 MB), `trap.js` and `snippets/relate-wasm-dd0c6225f894802b/js/opfs.js` from `@relate/relate-wasm@1.2.0` with its Apache-2.0 `LICENSE`, and patch `trap.js` with 1.3.0's regex ("too much recursion", "recursive use of an object") so Firefox traps are caught. No worker: paint a loading state, then load pairs in batches of about 5,000 positional rows, yielding between batches; add a worker only if a phone takes over 2 s. Add `?v=N` to data and query fetches (Pages caches for minutes). Chain queries use relationship types in the pattern, never `NONE()`/`WHERE` on edges
 - **Depends on:** U4
 - **Status:** todo
 - **Tests:**
@@ -103,6 +107,7 @@ At the end of the plan a judge opens a public page with no account and sees the 
   - edge: a link to an unknown station → a "not found" message with the search box
   - edge: the parity test of copy keys → every key in English and Spanish, every `_tech` with its `_plain`
   - error: WASM traps → the page shows a reload message and the CLI command
+  - happy: every proof shown carries the GMN CC BY 4.0 credit with the site link
 
 ### U6. Country, changes, could turn and chain views
 - **Goal:** the country view is also the monthly report (islands, cut points, single-partner and lonely cameras, two-station share, nearest island, printable and linkable); the change view lists stopped stations and what neighbours lost; "who could turn" lists nearby cameras with their aim marked as an estimate; the chain view shows the shortest chain between two stations
@@ -145,7 +150,7 @@ At the end of the plan a judge opens a public page with no account and sees the 
 - **Goal:** a stdio MCP server opens a local `.rl` read-only with `relate-db` (`--store`, default the October fixture `store/gmn-202610.rl`; the README shows `curl -L -o store/gmn.rl` of the release asset for 12 months) and exposes `lonely_cameras`, `take_down`, `country_report`, `who_could_turn`, `talk_to`, `witness_chain` and `station_history`, each running its query file and returning the query name, parameters and rows
 - **Covers:** R7 · F4
 - **Files:** `mcp/server.py`, `tests/test_mcp.py`, `docs/agent-run.md`
-- **Notes:** start from the stdlib JSON-RPC loop of `ii8ll8iik-crypto/rakiza/mcp_server.py` (MIT, "Copyright (c) 2026 Emran SM") and swap in our named tools, fixing: negotiate `protocolVersion` (2025-06-18, 2025-03-26, 2024-11-05), `-32700` on bad JSON, `-32602` for an unknown tool, `title`, `annotations` (`readOnlyHint` true), `outputSchema` and `structuredContent {query, parameters, rows}` plus a text copy, open the store once with `relate.connect(path, read_only=True)` and pass parameters as a dict, logs to stderr; the README also gives `relate serve --database store/gmn.rl --mcp stdio --read-only` as a zero-code fallback with Relate's own `read_cypher`
+- **Notes:** a stdlib JSON-RPC loop with our named tools, handling: negotiate `protocolVersion` (2025-06-18, 2025-03-26, 2024-11-05), `-32700` on bad JSON, `-32602` for an unknown tool, `title`, `annotations` (`readOnlyHint` true), `outputSchema` and `structuredContent {query, parameters, rows}` plus a text copy, open the store once with `relate.connect(path, read_only=True)` and pass parameters as a dict, logs to stderr; the README also gives `relate serve --database store/gmn.rl --mcp stdio --read-only` as a zero-code fallback with Relate's own `read_cypher`
 - **Depends on:** U3
 - **Status:** todo
 - **Tests:**
@@ -164,7 +169,7 @@ At the end of the plan a judge opens a public page with no account and sees the 
   - happy: the README's command on a fresh clone with no keys → a take-down answer. Covers AE5.
   - happy: the README's queries → HU000B 899, ES000C running with no partner, 67 stopped, US004L 86. Covers AE16.
   - edge: the README has a mermaid block naming the components of `docs/ARCHITECTURE.md`
-  - edge: the README has a "Works with the meteor map" section crediting Tammo Jan Dijkema's meteor map and Milan Kalina's meteorview
+  - edge: the README has a "Works with the meteor map" section crediting GMN's meteor map
   - error: a number in the README that differs from the test's result → the test fails naming it
 
 ### U11. Deploy to GitHub Pages
@@ -196,7 +201,7 @@ At the end of the plan a judge opens a public page with no account and sees the 
 - **Goal:** the loader reads GMN's nightly camera summaries, the weblog status per country and yesterday's daily trajectory file, and stores a probable `cause` per station and last night's pairs; the page shows the cause on a station, draws lines to its partners on the map and lists last night's pairs with the new ones marked; the MCP's `lonely_cameras` and `take_down` return `cause`
 - **Covers:** R22, R23, R24
 - **Files:** `load/gmn.py`, `load/build.py`, `queries/last_night.cypher`, `queries/lonely_cameras.cypher`, `queries/take_down.cypher`, `site/views/station.js`, `site/views/map.js`, `site/views/last_night.js`, `tests/test_cause.py`, `tests/last_night.test.mjs`
-- **Notes:** summary path from fields 1 and 2 of the per-night upload index (`<CC>/<CAM>/<CAM>_<stamp>_detected/`), about 1,400 files of 1.8 KB a day; country list from `status/Rmsindexes/country_dataset.json`; summary values are strings (`"False"`); the cause rule is one pure function with the order decommissioned > upload failure > clock > partial night > cloudy > old calibration > unknown; `SHARED_NIGHT` lives only in `gmn-latest.rl`; the daily file is cut by 1° of solar longitude, not by UTC day (D25), so the view's label is the min and max "Beginning UTC Time" of its rows, never "yesterday"
+- **Notes:** summary path from fields 1 and 2 of the per-night upload index (`<CC>/<CAM>/<CAM>_<stamp>_detected/`), about 1,400 files of 1.8 KB a day; country list from `status/Rmsindexes/country_dataset.json`; summary values are strings (`"False"`); the cause rule is one pure function with the order decommissioned > upload failure > clock > partial night > cloudy > old calibration > unknown; `SHARED_NIGHT` lives only in `gmn-latest.rl`; the daily file is cut by 1° of solar longitude, not by UTC day (D25), so the view's label is the min and max "Beginning UTC Time" of its rows, never "yesterday"; each cause links `weblog/<CC>/<CODE>/latest/`, a 404 there is `no_data` (not dark), about 1,000 dropped frames a night are normal (D27) and never a cause, and `cloudy` is ruled out on a night a partner within 100 km triangulated; the partner panel adds distance and bearing and the map draws `fov100` of the station and its partners
 - **Depends on:** U2, U3, U5, U11
 - **Status:** todo
 - **Tests:**
@@ -207,11 +212,26 @@ At the end of the plan a judge opens a public page with no account and sees the 
   - happy: `--partial` with a sample `traj_summary_yesterday.txt` → last night's pairs equal the file's, pairs absent from October marked new. Covers AE26.
   - edge: a sample daily file whose trajectories cross UTC midnight → the label names both dates
   - error: the weblog times out → causes keep the previous day's value and the job does not fail
+  - edge: weblog says "Cloudy weather" but a partner within 100 km has trajectories that night → cause is not `cloudy`
+  - edge: `latest/index.html` answers 404 → `no_data`, not `dark`
+  - edge: a daily file with `\n\r` line endings → same pairs as with `\n`
+
+### U14. Column check by header name
+- **Goal:** the loader reads the two `#` header lines of each trajectory file and checks that the columns it uses (the trajectory ID and `Participating stations`) sit where it reads them, so a reordered layout with 86 columns stops the load instead of writing a wrong graph
+- **Covers:** R1, R6
+- **Files:** `load/gmn.py`, `tests/test_load.py`
+- **Notes:** names repeat (`Beginning`, `IAU`) and are split over two lines, so match the joined name of the used columns only; keep the 86-column check; see D26
+- **Depends on:** U1
+- **Status:** todo
+- **Tests:**
+  - happy: October 2026 → the check passes and the store equals the current build
+  - error: a file with 86 columns whose `Participating stations` moved → non-zero exit naming the column, store untouched
 
 ## Cut line
 | Tier | Units | Why |
 |---|---|---|
 | must | U1, U2, U3, U4, U5, U6, U7, U8, U9, U10, U11, U12 | user-directed: all twelve ship by the deadline; with 435 h left, the margin for video, submission and deck is kept by building in dependency order and stopping at U12 before polishing |
+| must | U14 | the column check by name closes a silent wrong-graph risk found by two reviews (D25, D26); about 1 h |
 | should | U13 | added after the web review of 2026-11-25 (D23, D24); built only after U12, and R24 is the first to drop if time runs short |
 | cut | — | every R1–R24 is covered |
 

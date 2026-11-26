@@ -15,7 +15,10 @@ RAW_OCT = ROOT / "research" / "raw" / "202610" / "traj_summary_monthly_202610.tx
 
 
 def cypher(store, query):
-    out = subprocess.run(["relate", "--database", str(store), "--jsonl", query], capture_output=True, text=True, check=True)
+    with tempfile.TemporaryDirectory() as tmp:
+        copy = Path(tmp) / Path(store).name
+        shutil.copy(store, copy)
+        out = subprocess.run(["relate", "--database", str(copy), "--jsonl", query], capture_output=True, text=True, check=True)
     return [json.loads(line) for line in out.stdout.splitlines() if line.startswith("{")]
 
 
