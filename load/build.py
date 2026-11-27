@@ -25,9 +25,7 @@ KNOWN = ("UNWIND $known[{i}..{j}] AS r MERGE (s:Station {{code: r.code}}) "
 COUNTRY_STATS = ("UNWIND $country_stats AS r MERGE (c:Country {code: r.country}) WITH c, r MATCH (m:Month {id: $meta.month}) "
                  "CREATE (c)-[:STATS {month: $meta.month, orbits: r.orbits, two_station_orbits: r.two_station_orbits, "
                  "two_station_share: r.two_station_share, running_no_partner: r.running_no_partner, islands: r.islands}]->(m)")
-DROP_LINK = "MATCH (:Station)-[l:LINK]->(:Station) DELETE l"
-LINK = ("MATCH (a:Station)-[s:SHARED {month: $latest}]->(b:Station) "
-        "CREATE (a)-[:LINK {month: $latest, meteors: s.meteors}]->(b)")
+LINK = [s.strip() for s in (ROOT / "site" / "cypher" / "link.cypher").read_text().split(";") if s.strip()]
 DROP_SHARED = "MATCH (:Station)-[s:SHARED {month: $meta.month}]->(:Station) DELETE s"
 DROP_STATS = "MATCH (:Station)-[t:STATS]->(:Month {id: $meta.month}) DELETE t"
 DROP_COULD = "MATCH (:Station)-[c:COULD_PAIR {month: $meta.month}]->(:Station) DELETE c"
@@ -138,7 +136,7 @@ def load(store, months, cache, offline, fresh_store=False, partial_as_of=None, b
         enrich(month, data, tmp, cache, offline, now, fresh_fov=partial_as_of is not None)
         write_month(tmp, month, data[month], partial=partial_as_of is not None, as_of=as_of)
         print(f"{month}: {len(data[month]['stations'])} stations, {len(data[month]['pairs'])} pairs")
-    run(tmp, [DROP_LINK, LINK], {"latest": months_in(tmp)[-1]})
+    run(tmp, LINK, {"latest": months_in(tmp)[-1]})
     tmp.replace(store)
 
 

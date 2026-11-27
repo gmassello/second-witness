@@ -87,7 +87,7 @@ At the end of the plan a judge opens a public page with no account and sees the 
 - **Covers:** R6, R16
 - **Files:** `load/export.py`, `site/data/`, `tests/test_export.py`
 - **Depends on:** U3
-- **Status:** todo
+- **Status:** done (2026-11-27: `site/data/` is git-ignored build output, ADR-0002 amended; `site/cypher/*.cypher` rebuilds the graph in `:memory:`; the chain picks the strongest of the shortest paths and lists are ordered, so the page and the CLI give equal rows)
 - **Tests:**
   - happy: export after loading October → every row in `pairs-202610.json` matches the same query on the store
   - edge: only one month in the store → no previous-month file, the page shows "no earlier month"
