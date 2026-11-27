@@ -48,7 +48,7 @@ At the end of the plan a judge opens a public page with no account and sees the 
 - **Status:** todo
 - **Tests:**
   - happy: October 2026 → US004L has `cut_off` = 86 and the 86 stations still share meteors among themselves. Covers AE8.
-  - happy: September and October 2026 → 67 stations have status `stopped` and NZ002C lost 408 shared meteors. Covers AE10.
+  - happy: September and October 2026 → 46 stations have status `stopped` and NZ002C lost 408 shared meteors. Covers AE10.
   - happy: October 2026 → Spain and Portugal form an island apart from Europe, with its nearest camera pair about 470 km away. Covers AE11.
   - edge: two cameras at the same site that share meteors → counted as each other's partners; `site` only groups them for display
   - edge: a code that stopped while a new code started within the same-site distance → `possibly_moved`, not `stopped`
@@ -77,7 +77,7 @@ At the end of the plan a judge opens a public page with no account and sees the 
   - happy: Spain → its two-station share equals the count over the October file. Covers AE9.
   - happy: take down a third witness → the shown uncertainty equals the median of the month's three-station trajectories. Covers AE12.
   - happy: lonely cameras → ES000C with 31 nights and 1,797 detections. Covers AE13.
-  - happy: the README's queries → HU000B 899, ES000C running with no partner, 67 stopped, US004L 86. Covers AE16.
+  - happy: the README's queries → HU000B 899, ES000C running with no partner, 46 stopped, US004L 86. Covers AE16.
   - happy: chain between a Spanish and a German station → "no chain: different islands" naming both. Covers AE20.
   - edge: a station code that does not exist → empty rows, not an error
   - error: a query file with a syntax error → the test names the file and Relate's message
@@ -174,7 +174,7 @@ At the end of the plan a judge opens a public page with no account and sees the 
 - **Status:** todo
 - **Tests:**
   - happy: the README's command on a fresh clone with no keys → a take-down answer. Covers AE5.
-  - happy: the README's queries → HU000B 899, ES000C running with no partner, 67 stopped, US004L 86. Covers AE16.
+  - happy: the README's queries → HU000B 899, ES000C running with no partner, 46 stopped, US004L 86. Covers AE16.
   - edge: the README has a mermaid block naming the components of `docs/ARCHITECTURE.md`
   - edge: the README has a "Works with the meteor map" section crediting GMN's meteor map
   - error: a number in the README that differs from the test's result → the test fails naming it
