@@ -9,7 +9,9 @@ import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import geometry
 import gmn
+import graph
 
 ROOT = Path(__file__).resolve().parent.parent
 REPO = "gmassello/second-witness"
@@ -18,15 +20,26 @@ BATCH = 1000
 MONTH = "MERGE (m:Month {id: $meta.month}) SET m.partial = $meta.partial, m.as_of = $meta.as_of"
 DROP_SHARED = "MATCH (:Station)-[s:SHARED {month: $meta.month}]->(:Station) DELETE s"
 DROP_STATS = "MATCH (:Station)-[t:STATS]->(:Month {id: $meta.month}) DELETE t"
+DROP_COULD = "MATCH (:Station)-[c:COULD_PAIR {month: $meta.month}]->(:Station) DELETE c"
+DROP_NEAREST = "MATCH (:Station)-[n:NEAREST_ISLAND {month: $meta.month}]->(:Station) DELETE n"
 COUNTRIES = "UNWIND $countries AS c MERGE (x:Country {code: c.code}) SET x.name = c.name"
 STATIONS = ("UNWIND $stations[{i}..{j}] AS r MERGE (s:Station {{code: r.code}}) SET s.country = r.country "
             "WITH s, r WHERE s.pos_month IS NULL OR s.pos_month <= $meta.month "
-            "SET s.lat = r.lat, s.lon = r.lon, s.pos_month = $meta.month")
+            "SET s.lat = r.lat, s.lon = r.lon, s.site = r.site, s.pos_month = $meta.month")
+FOV = ("UNWIND $fov[{i}..{j}] AS r MATCH (s:Station {{code: r.code}}) "
+       "SET s.fov100 = r.poly, s.fov100_date = r.date")
 STATS = ("UNWIND $stations[{i}..{j}] AS r MATCH (s:Station {{code: r.code}}), (m:Month {{id: $meta.month}}) "
          "CREATE (s)-[:STATS {{month: $meta.month, nights: r.nights, detections: r.detections, orbits: r.orbits, "
-         "two_station_orbits: r.two_station_orbits, partners: r.partners, az: r.az, alt: r.alt, last_upload: r.last_upload}}]->(m)")
+         "two_station_orbits: r.two_station_orbits, partners: r.partners, az: r.az, alt: r.alt, last_upload: r.last_upload, "
+         "island: r.island, cut_off: r.cut_off, status: r.status, change: r.change, lost: r.lost, upload: r.upload}}]->(m)")
 SHARED = ("UNWIND $pairs[{i}..{j}] AS r MATCH (a:Station {{code: r.a}}), (b:Station {{code: r.b}}) "
           "CREATE (a)-[:SHARED {{month: $meta.month, meteors: r.meteors, two_station: r.two_station, sample_ids: r.sample_ids}}]->(b)")
+COULD = ("UNWIND $could[{i}..{j}] AS r MATCH (a:Station {{code: r.a}}), (b:Station {{code: r.b}}) "
+         "CREATE (a)-[:COULD_PAIR {{month: $meta.month, turn_deg: r.turn_deg, to_az: r.to_az, km: r.km, km2: r.km2, "
+         "estimate: true, fov_date: r.fov_date, aim_changed: r.aim_changed}}]->(b)")
+NEAREST = ("UNWIND $nearest AS r MATCH (a:Station {code: r.a}), (b:Station {code: r.b}) "
+           "CREATE (a)-[:NEAREST_ISLAND {month: $meta.month, km: r.km}]->(b)")
+PREV = "MATCH (a:Station)-[s:SHARED {{month: '{month}'}}]->(b:Station) RETURN a.code AS a, b.code AS b, s.meteors AS meteors"
 
 
 def batched(template, n):
@@ -48,17 +61,49 @@ def run(store, statements, params):
 
 def write_month(store, month, data, partial=False, as_of=None):
     meta = {"month": month, "partial": partial, "as_of": as_of}
-    statements = [MONTH, DROP_SHARED, DROP_STATS, COUNTRIES]
+    statements = [MONTH, DROP_SHARED, DROP_STATS, DROP_COULD, DROP_NEAREST, COUNTRIES]
     statements += batched(STATIONS, len(data["stations"]))
+    statements += batched(FOV, len(data["fov"]))
     statements += batched(STATS, len(data["stations"]))
     statements += batched(SHARED, len(data["pairs"]))
-    run(store, statements, {"meta": meta, **data})
+    statements += batched(COULD, len(data["could"]))
+    statements += [NEAREST]
+    keys = ("countries", "stations", "pairs", "fov", "could", "nearest")
+    run(store, statements, {"meta": meta, **{k: data[k] for k in keys}})
 
 
 def months_in(store):
-    out = subprocess.run(["relate", "--database", str(store), "--jsonl", "MATCH (m:Month) RETURN m.id AS id ORDER BY id"],
+    out = subprocess.run(["relate", "--database", str(store), "--max-rows", "0", "--jsonl", "MATCH (m:Month) RETURN m.id AS id ORDER BY id"],
                          capture_output=True, text=True, check=True).stdout
     return [json.loads(line)["id"] for line in out.splitlines() if line.startswith("{")]
+
+
+def previous(month):
+    y, m = int(month[:4]), int(month[4:])
+    return f"{y - 1:04d}12" if m == 1 else f"{y:04d}{m - 1:02d}"
+
+
+def prev_pairs(month, data, store, cache):
+    prev = previous(month)
+    if prev in data:
+        return data[prev]["pairs"]
+    if store.exists() and prev in months_in(store):
+        out = subprocess.run(["relate", "--database", str(store), "--max-rows", "0", "--jsonl", PREV.format(month=prev)],
+                             capture_output=True, text=True, check=True).stdout
+        return [json.loads(line) for line in out.splitlines() if line.startswith("{")]
+    traj = cache / prev / f"traj_summary_monthly_{prev}.txt"
+    return gmn.pairs(gmn.read_trajectories(traj)) if traj.exists() else None
+
+
+def enrich(month, data, store, cache, offline, now, fresh_fov):
+    d = data[month]
+    graph.annotate(d, prev_pairs(month, data, store, cache), d.pop("positions"), now)
+    need = geometry.fov_needed(d["stations"])
+    if not offline:
+        gmn.fetch_fov(need, cache, fresh=fresh_fov)
+    polys, dates = gmn.read_fov(need, cache)
+    d["fov"] = [{"code": c, "poly": [v for pt in polys[c] for v in pt], "date": dates[c]} for c in sorted(polys)]
+    d["could"] = geometry.could_pair(d["stations"], polys, dates)
 
 
 def load(store, months, cache, offline, fresh_store=False, partial_as_of=None, base=None):
@@ -76,8 +121,11 @@ def load(store, months, cache, offline, fresh_store=False, partial_as_of=None, b
     source = base or store
     if source.exists() and not fresh_store:
         shutil.copyfile(source, tmp)
+    now = datetime.datetime.fromisoformat(partial_as_of).replace(tzinfo=None) if partial_as_of else None
+    as_of = partial_as_of[:10] if partial_as_of else None
     for month in months:
-        write_month(tmp, month, data[month], partial=partial_as_of is not None, as_of=partial_as_of)
+        enrich(month, data, tmp, cache, offline, now, fresh_fov=partial_as_of is not None)
+        write_month(tmp, month, data[month], partial=partial_as_of is not None, as_of=as_of)
         print(f"{month}: {len(data[month]['stations'])} stations, {len(data[month]['pairs'])} pairs")
     tmp.replace(store)
 
@@ -113,7 +161,7 @@ def main():
     ap.add_argument("--fresh", action="store_true", help="start from an empty store")
     ap.add_argument("--rebuild", metavar="YYYYMM", help="rebuild the 12 months ending at YYYYMM")
     ap.add_argument("--partial", action="store_true", help="load the current month into a copy of the store")
-    ap.add_argument("--as-of", help="date of the partial month (default today, UTC)")
+    ap.add_argument("--as-of", help="date or UTC date-time of the partial month (default now)")
     ap.add_argument("--out", type=Path, default=ROOT / "store" / "gmn-latest.rl")
     ap.add_argument("--release", metavar="YYYYMM", help="upload the store as release store-YYYYMM")
     ap.add_argument("--manifest", type=Path, default=ROOT / "data" / "months.json")
@@ -121,7 +169,7 @@ def main():
     if a.release:
         release(a.store, a.release, a.manifest)
     elif a.partial:
-        as_of = a.as_of or datetime.datetime.now(datetime.UTC).date().isoformat()
+        as_of = a.as_of or datetime.datetime.now(datetime.UTC).replace(tzinfo=None).isoformat(timespec="seconds")
         load(a.out, [as_of[:4] + as_of[5:7]], a.source, a.offline, partial_as_of=as_of, base=a.store)
     elif a.rebuild:
         load(a.store, gmn.window(a.rebuild), a.source, a.offline, fresh_store=True)

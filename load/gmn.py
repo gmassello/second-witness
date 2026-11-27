@@ -1,4 +1,5 @@
 import calendar
+import datetime
 import json
 import re
 import time
@@ -8,6 +9,8 @@ from collections import Counter, defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from itertools import combinations
 from pathlib import Path
+
+import geometry
 
 BASE = "https://globalmeteornetwork.org"
 HEADERS = {"User-Agent": "second-witness/0.1 (GMN network analysis)"}
@@ -144,6 +147,7 @@ def station_rows(trajs, per_night, last, coords, month):
             "az": p.get("azim_center"),
             "alt": p.get("alt_center"),
             "last_upload": stamp_iso(last[code]) if code in last else None,
+            "aim_newer": max(coords.get(code, {}) or [""]) > cutoff,
         })
     return rows
 
@@ -162,11 +166,41 @@ def month_data(month, cache):
     coords = json.loads(coords_file.read_text()) if coords_file.exists() else {}
     per_night, last = read_index(month_dir)
     stations = station_rows(trajs, per_night, last, coords, month)
+    cutoff = month_end(month)
+    positions = {c: (e["lat"], e["lon"]) for c, h in coords.items() if (e := at_or_before(h, cutoff))}
     return {
         "stations": stations,
         "countries": country_rows(stations, cache / "gmncountries2.json"),
         "pairs": pairs(trajs),
+        "positions": positions,
     }
+
+
+def kml_path(cache, code):
+    return cache / "kml" / f"{code}-100km.kml"
+
+
+def fetch_fov(codes, cache, fresh=False):
+    def one(code):
+        try:
+            return get(f"{BASE}/data/kml_fov/{code}-100km.kml", kml_path(cache, code), force=fresh)
+        except SystemExit:
+            return False
+    with ThreadPoolExecutor(max_workers=WORKERS) as pool:
+        return sum(pool.map(one, codes))
+
+
+def read_fov(codes, cache):
+    polys, dates = {}, {}
+    for code in codes:
+        f = kml_path(cache, code)
+        if not f.exists() or f.stat().st_size == 0:
+            continue
+        poly = geometry.parse_kml(f.read_text(errors="replace"))
+        if poly:
+            polys[code] = poly
+            dates[code] = datetime.datetime.fromtimestamp(f.stat().st_mtime, datetime.UTC).date().isoformat()
+    return polys, dates
 
 
 def window(last_month, n=12):

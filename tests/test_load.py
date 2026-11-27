@@ -18,7 +18,7 @@ def cypher(store, query):
     with tempfile.TemporaryDirectory() as tmp:
         copy = Path(tmp) / Path(store).name
         shutil.copy(store, copy)
-        out = subprocess.run(["relate", "--database", str(copy), "--jsonl", query], capture_output=True, text=True, check=True)
+        out = subprocess.run(["relate", "--database", str(copy), "--max-rows", "0", "--jsonl", query], capture_output=True, text=True, check=True)
     return [json.loads(line) for line in out.stdout.splitlines() if line.startswith("{")]
 
 

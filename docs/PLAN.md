@@ -45,7 +45,7 @@ At the end of the plan a judge opens a public page with no account and sees the 
 - **Covers:** R8, R10, R11, R12, R14
 - **Files:** `load/graph.py`, `load/geometry.py`, `tests/test_graph.py`
 - **Depends on:** U1
-- **Status:** todo
+- **Status:** done (2026-11-27: fixture 14.1 MB, `store-202610` 36.2 MB; the CLI caps reads at 100 rows under an agent harness, so every read passes `--max-rows 0`)
 - **Tests:**
   - happy: October 2026 → US004L has `cut_off` = 86 and the 86 stations still share meteors among themselves. Covers AE8.
   - happy: September and October 2026 → 46 stations have status `stopped` and NZ002C lost 408 shared meteors. Covers AE10.
