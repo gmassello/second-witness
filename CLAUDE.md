@@ -16,6 +16,8 @@ python3 load/build.py --partial                                         # curren
 python3 load/build.py --release 202610                                  # gh release store-202610 + data/months.json
 # open the store (on a copy: opening a .rl rewrites it, and the fixture is tracked; --max-rows 0, or an agent shell caps reads at 100 rows)
 cp store/gmn-202610.rl /tmp/q.rl && relate --database /tmp/q.rl --max-rows 0 "MATCH (s:Station {code:'HU000B'})-[t:STATS]->() RETURN t.two_station_orbits"
+# run one shared query (U3): parameters as JSON, so the month goes quoted
+relate --database /tmp/q.rl --max-rows 0 --param station=HU000B --param month='"202610"' "$(cat queries/take_down.cypher)"
 # dev (planned, U5): static page, no build step
 python3 -m http.server 8000 --bind 127.0.0.1 --directory site
 # full suite: Python loader/queries/MCP tests + Node page tests (node --test finds *.test.mjs itself; a directory argument fails)
@@ -29,4 +31,4 @@ python3 -m unittest tests.test_graph.TestGraph.test_ae8_us004l_cuts_off_86_that_
 # monthly: `python3 load/build.py --rebuild <YYYYMM>` then `--release <YYYYMM>` on day 15 of the next month, and again whenever a closed month's `Last-Modified` changes (ADR-0007)
 ```
 
-U1 and U2 are built; the other lines follow `docs/PLAN.md` and become real as each unit lands.
+U1, U2 and U3 are built; the other lines follow `docs/PLAN.md` and become real as each unit lands.

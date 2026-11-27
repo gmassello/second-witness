@@ -2,6 +2,7 @@ import calendar
 import datetime
 import json
 import re
+import statistics
 import time
 import urllib.error
 import urllib.request
@@ -16,6 +17,7 @@ BASE = "https://globalmeteornetwork.org"
 HEADERS = {"User-Agent": "second-witness/0.1 (GMN network analysis)"}
 COLUMNS = 86
 COL_STATIONS = 85
+COL_VGEO_SIGMA = 16
 SAMPLE_IDS = 3
 WORKERS = 4
 SUFFIX = re.compile(r"_\d+$")
@@ -74,13 +76,36 @@ def read_trajectories(path):
             if len(c) != COLUMNS:
                 raise LayoutError(f"{path}: {len(c)} columns, expected {COLUMNS}")
             stations = tuple(sorted({SUFFIX.sub("", s.strip()) for s in c[COL_STATIONS].split(",") if s.strip()}))
-            out.append((c[0].strip(), stations))
+            out.append((c[0].strip(), stations, parse_float(c[COL_VGEO_SIGMA])))
     return out
+
+
+def parse_float(s):
+    try:
+        v = float(s)
+    except ValueError:
+        return None
+    return v if v == v and abs(v) != float("inf") else None
+
+
+def median_sigma(trajs, n):
+    vals = sorted(v for _, st, v in trajs if len(st) == n and v is not None)
+    return statistics.median(vals) if vals else None
+
+
+def country_rows_stats(trajs):
+    orbits, two = Counter(), Counter()
+    for _, st, _ in trajs:
+        for c in {s[:2] for s in st}:
+            orbits[c] += 1
+            two[c] += len(st) == 2
+    return {c: {"country": c, "orbits": orbits[c], "two_station_orbits": two[c],
+                "two_station_share": round(two[c] / orbits[c], 6)} for c in orbits}
 
 
 def pairs(trajs):
     acc = {}
-    for tid, stations in trajs:
+    for tid, stations, _ in trajs:
         for a, b in combinations(stations, 2):
             p = acc.setdefault((a, b), {"a": a, "b": b, "meteors": 0, "two_station": 0, "sample_ids": []})
             p["meteors"] += 1
@@ -119,11 +144,12 @@ def month_end(month):
 
 
 def station_rows(trajs, per_night, last, coords, month):
-    orbits, two, partners = Counter(), Counter(), defaultdict(set)
-    for _, stations in trajs:
+    orbits, two, three, partners = Counter(), Counter(), Counter(), defaultdict(set)
+    for _, stations, _ in trajs:
         for s in stations:
             orbits[s] += 1
             two[s] += len(stations) == 2
+            three[s] += len(stations) == 3
             partners[s].update(x for x in stations if x != s)
     nights, detections = Counter(), Counter()
     for (cam, _), n in per_night.items():
@@ -143,6 +169,7 @@ def station_rows(trajs, per_night, last, coords, month):
             "detections": detections[code],
             "orbits": orbits[code],
             "two_station_orbits": two[code],
+            "three_station_orbits": three[code],
             "partners": len(partners[code]),
             "az": p.get("azim_center"),
             "alt": p.get("alt_center"),
@@ -173,6 +200,9 @@ def month_data(month, cache):
         "countries": country_rows(stations, cache / "gmncountries2.json"),
         "pairs": pairs(trajs),
         "positions": positions,
+        "known": [{"code": c, "country": c[:2]} for c in sorted(coords)],
+        "country_stats": country_rows_stats(trajs),
+        "meta": {"sigma2_median": median_sigma(trajs, 2), "sigma3_median": median_sigma(trajs, 3)},
     }
 
 
@@ -213,7 +243,10 @@ def window(last_month, n=12):
 
 
 def self_check():
-    t = [("a", ("A", "B")), ("b", ("A", "B", "C")), ("c", ("A", "B"))]
+    t = [("a", ("A", "B"), 1.0), ("b", ("A", "B", "C"), 2.0), ("c", ("A", "B"), None)]
+    assert median_sigma(t, 2) == 1.0 and median_sigma(t, 3) == 2.0
+    assert country_rows_stats([("a", ("ES0001", "PT0001"), None), ("b", ("ES0001", "ES0002", "PT0002"), None)])["ES"]["orbits"] == 2
+    assert parse_float(" nan") is None and parse_float("x") is None
     p = {(x["a"], x["b"]): x for x in pairs(t)}
     assert p["A", "B"]["meteors"] == 3 and p["A", "B"]["two_station"] == 2
     assert p["B", "C"]["sample_ids"] == ["b"]

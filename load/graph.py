@@ -125,7 +125,7 @@ def annotate(data, prev_pairs, positions=None, now=None):
     for code in gone - set(stations):
         lat, lon = positions.get(code, (None, None))
         stations[code] = {"code": code, "country": code[:2], "lat": lat, "lon": lon, "nights": 0, "detections": 0,
-                          "orbits": 0, "two_station_orbits": 0, "partners": 0, "az": None, "alt": None, "last_upload": None,
+                          "orbits": 0, "two_station_orbits": 0, "three_station_orbits": 0, "partners": 0, "az": None, "alt": None, "last_upload": None,
                           "aim_newer": False}
     for s in stations.values():
         s.setdefault("lat", None)
@@ -144,6 +144,14 @@ def annotate(data, prev_pairs, positions=None, now=None):
     data["stations"] = [stations[c] for c in sorted(stations)]
     pos = {c: (s["lat"], s["lon"]) for c, s in stations.items() if s["lat"] is not None and s["lon"] is not None}
     data["nearest"] = nearest_islands(comps, pos)
+    cs = data.setdefault("country_stats", {})
+    lonely, islands = Counter(), defaultdict(set)
+    for s in data["stations"]:
+        cs.setdefault(s["country"], {"country": s["country"], "orbits": 0, "two_station_orbits": 0, "two_station_share": None})
+        lonely[s["country"]] += s["status"] == "running_no_partner"
+        if s["island"]:
+            islands[s["country"]].add(s["island"])
+    data["country_stats"] = [{**cs[c], "running_no_partner": lonely[c], "islands": len(islands[c])} for c in sorted(cs)]
     return data
 
 

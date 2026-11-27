@@ -17,7 +17,17 @@ ROOT = Path(__file__).resolve().parent.parent
 REPO = "gmassello/second-witness"
 BATCH = 1000
 
-MONTH = "MERGE (m:Month {id: $meta.month}) SET m.partial = $meta.partial, m.as_of = $meta.as_of"
+MONTH = ("MERGE (m:Month {id: $meta.month}) SET m.partial = $meta.partial, m.as_of = $meta.as_of, "
+         "m.sigma2_median = $meta.sigma2_median, m.sigma3_median = $meta.sigma3_median")
+DROP_COUNTRY_STATS = "MATCH (:Country)-[t:STATS]->(:Month {id: $meta.month}) DELETE t"
+KNOWN = ("UNWIND $known[{i}..{j}] AS r MERGE (s:Station {{code: r.code}}) "
+         "WITH s, r WHERE s.country IS NULL SET s.country = r.country")
+COUNTRY_STATS = ("UNWIND $country_stats AS r MERGE (c:Country {code: r.country}) WITH c, r MATCH (m:Month {id: $meta.month}) "
+                 "CREATE (c)-[:STATS {month: $meta.month, orbits: r.orbits, two_station_orbits: r.two_station_orbits, "
+                 "two_station_share: r.two_station_share, running_no_partner: r.running_no_partner, islands: r.islands}]->(m)")
+DROP_LINK = "MATCH (:Station)-[l:LINK]->(:Station) DELETE l"
+LINK = ("MATCH (a:Station)-[s:SHARED {month: $latest}]->(b:Station) "
+        "CREATE (a)-[:LINK {month: $latest, meteors: s.meteors}]->(b)")
 DROP_SHARED = "MATCH (:Station)-[s:SHARED {month: $meta.month}]->(:Station) DELETE s"
 DROP_STATS = "MATCH (:Station)-[t:STATS]->(:Month {id: $meta.month}) DELETE t"
 DROP_COULD = "MATCH (:Station)-[c:COULD_PAIR {month: $meta.month}]->(:Station) DELETE c"
@@ -30,7 +40,7 @@ FOV = ("UNWIND $fov[{i}..{j}] AS r MATCH (s:Station {{code: r.code}}) "
        "SET s.fov100 = r.poly, s.fov100_date = r.date")
 STATS = ("UNWIND $stations[{i}..{j}] AS r MATCH (s:Station {{code: r.code}}), (m:Month {{id: $meta.month}}) "
          "CREATE (s)-[:STATS {{month: $meta.month, nights: r.nights, detections: r.detections, orbits: r.orbits, "
-         "two_station_orbits: r.two_station_orbits, partners: r.partners, az: r.az, alt: r.alt, last_upload: r.last_upload, "
+         "two_station_orbits: r.two_station_orbits, three_station_orbits: r.three_station_orbits, partners: r.partners, az: r.az, alt: r.alt, last_upload: r.last_upload, "
          "island: r.island, cut_off: r.cut_off, status: r.status, change: r.change, lost: r.lost, upload: r.upload}}]->(m)")
 SHARED = ("UNWIND $pairs[{i}..{j}] AS r MATCH (a:Station {{code: r.a}}), (b:Station {{code: r.b}}) "
           "CREATE (a)-[:SHARED {{month: $meta.month, meteors: r.meteors, two_station: r.two_station, sample_ids: r.sample_ids}}]->(b)")
@@ -60,15 +70,16 @@ def run(store, statements, params):
 
 
 def write_month(store, month, data, partial=False, as_of=None):
-    meta = {"month": month, "partial": partial, "as_of": as_of}
-    statements = [MONTH, DROP_SHARED, DROP_STATS, DROP_COULD, DROP_NEAREST, COUNTRIES]
+    meta = {"month": month, "partial": partial, "as_of": as_of, **data["meta"]}
+    statements = [MONTH, DROP_SHARED, DROP_STATS, DROP_COULD, DROP_NEAREST, DROP_COUNTRY_STATS, COUNTRIES]
+    statements += batched(KNOWN, len(data["known"]))
     statements += batched(STATIONS, len(data["stations"]))
     statements += batched(FOV, len(data["fov"]))
     statements += batched(STATS, len(data["stations"]))
     statements += batched(SHARED, len(data["pairs"]))
     statements += batched(COULD, len(data["could"]))
-    statements += [NEAREST]
-    keys = ("countries", "stations", "pairs", "fov", "could", "nearest")
+    statements += [NEAREST, COUNTRY_STATS]
+    keys = ("countries", "known", "stations", "pairs", "fov", "could", "nearest", "country_stats")
     run(store, statements, {"meta": meta, **{k: data[k] for k in keys}})
 
 
@@ -127,6 +138,7 @@ def load(store, months, cache, offline, fresh_store=False, partial_as_of=None, b
         enrich(month, data, tmp, cache, offline, now, fresh_fov=partial_as_of is not None)
         write_month(tmp, month, data[month], partial=partial_as_of is not None, as_of=as_of)
         print(f"{month}: {len(data[month]['stations'])} stations, {len(data[month]['pairs'])} pairs")
+    run(tmp, [DROP_LINK, LINK], {"latest": months_in(tmp)[-1]})
     tmp.replace(store)
 
 

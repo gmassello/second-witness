@@ -68,7 +68,7 @@ At the end of the plan a judge opens a public page with no account and sees the 
 - **Covers:** R2, R3, R4, R13, R16, R19
 - **Files:** `queries/*.cypher`, `tests/test_queries.py`
 - **Depends on:** U1, U2
-- **Status:** todo
+- **Status:** done (2026-11-27: also touched `load/` for `three_station_orbits`, `Month.sigma2_median`/`sigma3_median`, Country `STATS`, every known station and `LINK`, the newest month's pairs the chain walks because `shortestPath` takes no month filter; queries return codes, the adapters map them to text)
 - **Tests:**
   - happy: take down a station that is another station's only partner → that station is listed as losing its only partner. Covers AE2.
   - happy: take down HU000B → 899 orbits lost and at least one trajectory ID per affected partner. Covers AE3.
