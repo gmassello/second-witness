@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Second Witness</title>
+<meta name="description" content="Which Global Meteor Network cameras work alone, and which ones the network leans on.">
+<script>
+try {
+  var saved = localStorage.getItem('sw-theme');
+  document.documentElement.dataset.theme = saved || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+} catch (e) { document.documentElement.dataset.theme = 'light'; }
+</script>
+<link rel="stylesheet" href="style.css?v=1">
+</head>
+<body>
+<a class="skip" href="#main" data-t="skip">Skip to content</a>
+<header>
+  <div class="brand">
+    <a href="#/" class="title" data-t="title">Second Witness</a>
+    <p id="tagline" class="muted">Which meteor cameras work alone, and which ones the network leans on.</p>
+  </div>
+  <div class="tools">
+    <label class="search"><span data-t="search_label" class="sr">Find a station or country</span>
+      <input id="search" type="search" autocomplete="off" placeholder="Code or country, e.g. ES000C or Spain">
+    </label>
+    <ul id="results" class="results"></ul>
+    <div class="toggles">
+      <span role="group" aria-label="Language"><button type="button" data-lang="en" aria-pressed="true">EN</button><button type="button" data-lang="es" aria-pressed="false">ES</button></span>
+      <button type="button" id="theme">Dark</button>
+      <button type="button" id="register">Technical</button>
+    </div>
+  </div>
+</header>
+<main id="main" tabindex="-1"><p class="loading">Loading the network…</p></main>
+<script type="module" src="app.js?v=1"></script>
+</body>
+</html>

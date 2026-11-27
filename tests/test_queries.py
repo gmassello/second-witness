@@ -13,10 +13,11 @@ from test_load import FIXTURE, RAW_OCT, cypher
 
 ROOT = Path(__file__).resolve().parent.parent
 QUERIES = ROOT / "queries"
-NAMES = ["lonely_cameras", "take_down", "country", "changes", "could_turn", "talk_to", "chain",
+NAMES = ["network", "lonely_cameras", "take_down", "country", "changes", "could_turn", "talk_to", "chain",
          "station_history", "country_history", "search"]
 MONTH = "202610"
 SUFFIX = re.compile(r"_\d+$")
+STORE12 = ROOT / "store" / "gmn.rl"
 
 
 def run_file(path, store=FIXTURE, **params):
@@ -70,7 +71,9 @@ class TestQueries(unittest.TestCase):
         self.assertEqual(sum(r["two_station"] for r in affected), 899)
         for r in affected:
             self.assertGreaterEqual(len(r["sample_ids"]), 1)
-            self.assertEqual(r["link"], f"https://tammojan.github.io/meteormap/?data=2026-10&stations=HU000B;{r['partner']}")
+            self.assertTrue(r["link"].startswith(f"https://tammojan.github.io/meteormap/?data=2026-10&stations=HU000B;{r['partner']}"), r["link"])
+            self.assertRegex(r["link"], r"[?&]data=\d{4}-\d{2}&")
+            self.assertEqual(sum(f"&{k}=" in r["link"] for k in ("lat", "lng", "zoom")) % 3, 0, r["link"])
             self.assertIn("CC BY 4.0", r["credit"])
 
     @unittest.skipUnless(RAW_OCT.exists(), "needs research/raw/202610")
@@ -129,6 +132,19 @@ class TestQueries(unittest.TestCase):
         rows = q("take_down", station="HU000B", month=MONTH)
         self.assertGreater(rows[0]["third_witness_orbits"], 0)
         self.assertAlmostEqual(rows[0]["sigma3_median"], statistics.median(sig), places=6)
+
+    def test_network_fragility_on_one_screen(self):
+        r = q("network", month=MONTH)[0]
+        self.assertEqual(len(r["islands"]), 18)
+        self.assertEqual(r["cut_points"][0], {"station": "US004L", "cut_off": 86, "island": r["cut_points"][0]["island"]})
+        self.assertEqual(r["top_losses"][0], {"station": "HU000B", "orbits_lost": 899})
+        self.assertIn("ES", {c["country"] for c in r["countries"]})
+
+    @unittest.skipUnless(STORE12.exists(), "needs the 12-month store/gmn.rl")
+    def test_ae27_us003y_down_leaves_us005v_with_no_partner(self):
+        rows = run_file(QUERIES / "take_down.cypher", store=STORE12, station="US003Y", month="202602")
+        us = next(r for r in rows if r["partner"] == "US005V")
+        self.assertEqual((us["effect"], us["meteors"]), ("loses_only_partner", 8))
 
     def test_ae13_lonely_cameras_lists_es000c(self):
         rows = q("lonely_cameras", country=None, month=MONTH)
