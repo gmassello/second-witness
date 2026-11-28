@@ -29,6 +29,7 @@ python3 load/export.py --store store/gmn-202610.rl && python3 -m http.server 800
 python3 -m unittest discover -s tests && node --test
 # single test
 python3 -m unittest tests.test_graph.TestGraph.test_ae8_us004l_cuts_off_86_that_still_share_meteors
+python3 -m unittest tests.test_readme   # every number in README.md against the store; runs its '# check:' blocks
 # lint: none — no build step and no linter dependency; the parity tests are the gate
 # type-check: none — plain JavaScript and Python, no type checker added
 # deploy (planned, U11): GitHub Pages from .github/workflows/pages.yml on push to main and daily,
@@ -36,4 +37,4 @@ python3 -m unittest tests.test_graph.TestGraph.test_ae8_us004l_cuts_off_86_that_
 # monthly: `python3 load/build.py --rebuild <YYYYMM>` then `--release <YYYYMM>` on day 15 of the next month, and again whenever a closed month's `Last-Modified` changes (ADR-0007)
 ```
 
-U1 to U9 are built; the other lines follow `docs/PLAN.md` and become real as each unit lands.
+U1 to U10 are built; the other lines follow `docs/PLAN.md` and become real as each unit lands.

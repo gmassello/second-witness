@@ -171,7 +171,7 @@ At the end of the plan a judge opens a public page with no account and sees the 
 - **Covers:** R9 · F3
 - **Files:** `README.md`, `tests/test_readme.py`
 - **Depends on:** U3
-- **Status:** todo
+- **Status:** done (2026-11-28: the README's numbers live in one table that `tests/test_readme.py` recomputes, and its `# check:` blocks run as written; `relate --load` of the raw GitHub URL checked once by hand; the Pages URL and screenshots wait for U11)
 - **Tests:**
   - happy: the README's command on a fresh clone with no keys → a take-down answer. Covers AE5.
   - happy: the README's queries → HU000B 899, ES000C running with no partner, 46 stopped, US004L 86. Covers AE16.
