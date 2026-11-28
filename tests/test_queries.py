@@ -114,6 +114,17 @@ class TestQueries(unittest.TestCase):
         self.assertEqual((es["orbits"], es["two_station_orbits"]), (total, two))
         self.assertAlmostEqual(es["two_station_share"], two / total, places=4)
 
+    def test_country_report_groups_add_up(self):
+        es = q("country", country="ES", month=MONTH)[0]
+        self.assertEqual(sum(es["groups"].values()), es["stations"])
+        self.assertEqual(es["groups"]["running_no_partner"], es["running_no_partner"])
+        self.assertEqual(es["nearest"][0]["km"], 470)
+        self.assertGreater(es["three_station_orbits"], 0)
+
+    def test_changes_carries_upload_state(self):
+        rows = q("changes", month=MONTH)
+        self.assertTrue(all("upload" in r and "last_upload" in r for r in rows))
+
     def test_country_neighbours_and_islands(self):
         es = q("country", country="ES", month=MONTH)[0]
         self.assertIn("PT", es["neighbours"])

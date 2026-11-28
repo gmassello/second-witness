@@ -1,6 +1,10 @@
 import * as wasm from './vendor/relate-wasm/relate.js';
 import { isWasmTrap } from './vendor/relate-wasm/trap.js';
 import * as model from './model.js';
+import * as countryView from './views/country.js';
+import * as changesView from './views/changes.js';
+import * as turnView from './views/turn.js';
+import * as chainView from './views/chain.js';
 import { LANGS, REGISTERS, t, locale } from './text.js';
 
 const root = document.documentElement;
@@ -72,9 +76,10 @@ function home(v) {
   const lonely = h('section', { class: 'card' },
     h('h2', {}, `${tr('lonely_title')} (${num(v.lonely.length)})`),
     h('p', { class: 'note' }, tr('lonely_note')),
-    h('ol', { class: 'lonely' }, v.lonely.map((r) => h('li', {}, stationLink(r.station), ' ', h('span', { class: 'muted' }, tr('lonely_row', { nights: num(r.nights), detections: num(r.detections) }))))),
+    h('ol', { class: 'lonely' }, v.lonely.map((r) => h('li', {}, stationLink(r.station), ' ', h('span', { class: 'muted' }, tr('lonely_row', { nights: num(r.nights), detections: num(r.detections) })), ' ', h('a', { href: `#/turn/${r.station}`, class: 'small' }, tr('turn_link'))))),
   );
-  return h('div', { class: 'grid' }, islands, lonely);
+  const more = h('p', { class: 'links' }, h('a', { href: '#/changes' }, tr('changes_link')), ' · ', h('a', { href: '#/chain' }, tr('chain_link')));
+  return h('div', {}, more, h('div', { class: 'grid' }, islands, lonely));
 }
 
 function station(v) {
@@ -102,24 +107,14 @@ function station(v) {
       h('p', { class: 'status' }, code(s.status), ' · ', countryLink(s.country)),
       h('p', {}, tr('stats_row', { nights: num(s.nights), detections: num(s.detections), orbits: num(s.orbits), partners: num(v.partners.length) })),
       monthLine(v),
-      s.status === 'running_no_partner' ? h('p', { class: 'note' }, tr('lonely_note')) : null),
+      s.status === 'running_no_partner' ? h('p', { class: 'note' }, tr('lonely_note')) : null,
+      h('p', { class: 'links' }, s.status === 'running_no_partner' ? [h('a', { href: `#/turn/${s.station}` }, tr('turn_link')), ' · '] : null,
+        h('a', { href: `#/chain/${s.station}/` }, tr('chain_link')))),
     h('div', { class: 'grid' }, down, partners));
 }
 
-function country(v) {
-  const c = v.country;
-  return h('div', {},
-    h('section', { class: 'card head' },
-      h('h1', {}, tr('country_title', { code: `${c.name} (${c.country})` })),
-      monthLine(v),
-      h('p', { class: 'big' }, tr('country_share', { share: pct(c.two_station_share), orbits: num(c.orbits) })),
-      h('p', {}, tr('country_lonely', { n: num(c.running_no_partner) }))),
-    h('section', { class: 'card' },
-      h('h2', {}, tr('lonely_title')),
-      h('p', { class: 'note' }, tr('lonely_note')),
-      h('ol', { class: 'lonely' }, v.lonely.map((r) => h('li', {}, stationLink(r.station), ' ', h('span', { class: 'muted' }, tr('lonely_row', { nights: num(r.nights), detections: num(r.detections) }))))),
-      credit()));
-}
+const modules = { country: countryView, changes: changesView, turn: turnView, chain: chainView };
+const ui = { h, tr, num, pct, date, code, stationLink, countryLink, credit, monthLine };
 
 function notFound(v) {
   setTimeout(() => document.getElementById('search').focus());
@@ -134,10 +129,13 @@ function trapped(r) {
 async function render() {
   paintChrome();
   if (!state.app) return;
-  const r = await model.guard(() => model.view(state.app, model.route(location.hash)), isWasmTrap)
+  const route = model.route(location.hash);
+  const mod = modules[route.view];
+  const r = await model.guard(() => (mod ? mod.data(state.app, route) : model.view(state.app, route)), isWasmTrap)
     .catch((e) => ({ view: 'error', message: e.message }));
-  const views = { home, station, country, not_found: notFound };
-  main.replaceChildren(r.trap ? trapped(r) : r.view === 'error' ? h('p', { role: 'alert' }, tr('error', { message: r.message })) : views[r.view](r));
+  const views = { home, station, not_found: notFound };
+  const paint = modules[r.view] ? (x) => modules[r.view].render(x, ui) : views[r.view];
+  main.replaceChildren(r.trap ? trapped(r) : r.view === 'error' ? h('p', { role: 'alert' }, tr('error', { message: r.message })) : paint(r));
   main.focus({ preventScroll: true });
 }
 

@@ -147,7 +147,7 @@ def annotate(data, prev_pairs, positions=None, now=None):
     cs = data.setdefault("country_stats", {})
     lonely, islands = Counter(), defaultdict(set)
     for s in data["stations"]:
-        cs.setdefault(s["country"], {"country": s["country"], "orbits": 0, "two_station_orbits": 0, "two_station_share": None})
+        cs.setdefault(s["country"], {"country": s["country"], "orbits": 0, "two_station_orbits": 0, "three_station_orbits": 0, "two_station_share": None})
         lonely[s["country"]] += s["status"] == "running_no_partner"
         if s["island"]:
             islands[s["country"]].add(s["island"])

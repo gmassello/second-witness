@@ -72,9 +72,11 @@ export function cutoff(month) {
 }
 
 export function route(hash) {
-  const [, kind, code] = (hash || '').replace(/^#\/?/, '/').split('/');
-  if (kind === 'station' && code) return { view: 'station', code: decodeURIComponent(code).toUpperCase() };
-  if (kind === 'country' && code) return { view: 'country', code: decodeURIComponent(code).toUpperCase() };
+  const [, kind, a, b] = (hash || '').replace(/^#\/?/, '/').split('/');
+  const up = (x) => decodeURIComponent(x || '').trim().toUpperCase();
+  if (['station', 'country', 'turn'].includes(kind) && a) return { view: kind, code: up(a) };
+  if (kind === 'changes') return { view: 'changes' };
+  if (kind === 'chain') return { view: 'chain', code: up(a), other: up(b) };
   return { view: 'home' };
 }
 
@@ -87,12 +89,6 @@ export async function view(app, r, month = app.month) {
     const s = rows[0];
     const partners = rows.filter((p) => p.partner).map((p) => ({ ...p, cutoff: date }));
     return { view: 'station', month: info, cutoff: date, station: s, partners };
-  }
-  if (r.view === 'country') {
-    const rows = await app.run('country', { country: r.code, month });
-    if (!rows.length) return { view: 'not_found', code: r.code };
-    const lonely = await app.run('lonely_cameras', { country: r.code, month });
-    return { view: 'country', month: info, cutoff: date, country: rows[0], lonely };
   }
   const [network] = await app.run('network', { month });
   const lonely = await app.run('lonely_cameras', { country: null, month });

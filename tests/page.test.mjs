@@ -1,53 +1,18 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
-import { spawnSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
-
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const SITE = path.join(ROOT, 'site');
-const FIXTURE = path.join(ROOT, 'store', 'gmn-202610.rl');
-const MONTH = '202610';
+import { SITE, MONTH, cli, canon, loadApp } from './page_setup.mjs';
 
 const model = await import(path.join(SITE, 'model.js'));
 const { TEXT, t } = await import(path.join(SITE, 'text.js'));
-const wasm = await import(path.join(SITE, 'vendor', 'relate-wasm', 'relate.js'));
 const { isWasmTrap } = await import(path.join(SITE, 'vendor', 'relate-wasm', 'trap.js'));
 
-let tmp;
 let app;
+let cleanup;
 
-function cli(name, params) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sw-'));
-  const copy = path.join(dir, 'q.rl');
-  fs.copyFileSync(FIXTURE, copy);
-  const args = ['--database', copy, '--max-rows', '0', '--jsonl'];
-  for (const [k, v] of Object.entries(params)) args.push('--param', `${k}=${JSON.stringify(v)}`);
-  args.push(fs.readFileSync(path.join(SITE, 'queries', `${name}.cypher`), 'utf8'));
-  const r = spawnSync('relate', args, { encoding: 'utf8', maxBuffer: 1 << 28 });
-  fs.rmSync(dir, { recursive: true, force: true });
-  assert.equal(r.status, 0, r.stderr);
-  return r.stdout.split('\n').filter((l) => l.startsWith('{') && !l.includes('rowCap')).map((l) => JSON.parse(l));
-}
-
-const canon = (rows) => rows.map((r) => JSON.stringify(r, Object.keys(r).sort())).sort();
-
-before(async () => {
-  tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'sw-data-'));
-  const r = spawnSync('python3', [path.join(ROOT, 'load', 'export.py'), '--store', FIXTURE, '--out', tmp], { encoding: 'utf8' });
-  assert.equal(r.status, 0, r.stderr);
-  app = await model.load({
-    wasm,
-    wasmInput: { module_or_path: fs.readFileSync(path.join(SITE, 'vendor', 'relate-wasm', 'relate_bg.wasm')) },
-    getJson: async (p) => JSON.parse(fs.readFileSync(path.join(tmp, path.basename(p.split('?')[0])), 'utf8')),
-    getText: async (p) => fs.readFileSync(path.join(SITE, p.split('?')[0]), 'utf8'),
-    pause: async () => {},
-  });
-});
-
-after(() => fs.rmSync(tmp, { recursive: true, force: true }));
+before(async () => { ({ app, cleanup } = await loadApp()); });
+after(() => cleanup());
 
 const CASES = [
   ['network', { month: MONTH }],
@@ -93,9 +58,7 @@ test('an unknown station link gives not found', async () => {
 });
 
 test('country links open their view', async () => {
-  const v = await model.view(app, model.route('#/country/ES'));
-  assert.equal(v.view, 'country');
-  assert.equal(v.country.country, 'ES');
+  assert.deepEqual(model.route('#/country/es'), { view: 'country', code: 'ES' });
   assert.equal(model.route('#/').view, 'home');
   assert.equal(model.route('#/station/es000c').code, 'ES000C');
 });

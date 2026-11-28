@@ -117,7 +117,7 @@ At the end of the plan a judge opens a public page with no account and sees the 
 - **Covers:** R8, R10, R11, R12, R14, R15, R19 · F2, F5, F6, F7, F9
 - **Files:** `site/views/country.js`, `site/views/changes.js`, `site/views/turn.js`, `site/views/chain.js`, `tests/views.test.mjs`
 - **Depends on:** U5
-- **Status:** todo
+- **Status:** done (2026-11-27: also `queries/country.cypher` and `changes.cypher`, Country `three_station_orbits` in `load/gmn.py` with the fixture and release rebuilt, routes in `site/model.js`, dispatch in `site/app.js`, copy in `site/text.js`, print CSS, and `tests/page_setup.mjs` shared by the Node tests)
 - **Tests:**
   - happy: ES000C → "who could turn" lists at least one installed camera with azimuth, elevation and the word "estimate". Covers AE14.
   - happy: Spain's country report → each number equals the matching query on the store. Covers AE15.

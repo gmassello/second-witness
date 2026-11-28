@@ -24,7 +24,7 @@ KNOWN = ("UNWIND $known[{i}..{j}] AS r MERGE (s:Station {{code: r.code}}) "
          "WITH s, r WHERE s.country IS NULL SET s.country = r.country")
 COUNTRY_STATS = ("UNWIND $country_stats AS r MERGE (c:Country {code: r.country}) WITH c, r MATCH (m:Month {id: $meta.month}) "
                  "CREATE (c)-[:STATS {month: $meta.month, orbits: r.orbits, two_station_orbits: r.two_station_orbits, "
-                 "two_station_share: r.two_station_share, running_no_partner: r.running_no_partner, islands: r.islands}]->(m)")
+                 "three_station_orbits: r.three_station_orbits, two_station_share: r.two_station_share, running_no_partner: r.running_no_partner, islands: r.islands}]->(m)")
 LINK = [s.strip() for s in (ROOT / "site" / "cypher" / "link.cypher").read_text().split(";") if s.strip()]
 DROP_SHARED = "MATCH (:Station)-[s:SHARED {month: $meta.month}]->(:Station) DELETE s"
 DROP_STATS = "MATCH (:Station)-[t:STATS]->(:Month {id: $meta.month}) DELETE t"

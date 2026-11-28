@@ -94,12 +94,13 @@ def median_sigma(trajs, n):
 
 
 def country_rows_stats(trajs):
-    orbits, two = Counter(), Counter()
+    orbits, two, three = Counter(), Counter(), Counter()
     for _, st, _ in trajs:
         for c in {s[:2] for s in st}:
             orbits[c] += 1
             two[c] += len(st) == 2
-    return {c: {"country": c, "orbits": orbits[c], "two_station_orbits": two[c],
+            three[c] += len(st) == 3
+    return {c: {"country": c, "orbits": orbits[c], "two_station_orbits": two[c], "three_station_orbits": three[c],
                 "two_station_share": round(two[c] / orbits[c], 6)} for c in orbits}
 
 
@@ -245,7 +246,7 @@ def window(last_month, n=12):
 def self_check():
     t = [("a", ("A", "B"), 1.0), ("b", ("A", "B", "C"), 2.0), ("c", ("A", "B"), None)]
     assert median_sigma(t, 2) == 1.0 and median_sigma(t, 3) == 2.0
-    assert country_rows_stats([("a", ("ES0001", "PT0001"), None), ("b", ("ES0001", "ES0002", "PT0002"), None)])["ES"]["orbits"] == 2
+    assert country_rows_stats([("a", ("ES0001", "PT0001"), None), ("b", ("ES0001", "ES0002", "PT0002"), None)])["ES"]["three_station_orbits"] == 1
     assert parse_float(" nan") is None and parse_float("x") is None
     p = {(x["a"], x["b"]): x for x in pairs(t)}
     assert p["A", "B"]["meteors"] == 3 and p["A", "B"]["two_station"] == 2
