@@ -80,6 +80,8 @@ relate --database /tmp/sw.rl --param station='"HU000B"' --param month='"202610"'
 
 The first row says `orbits_lost` 899: if HU000B stopped, 899 October orbits would lose their second witness. Parameters are JSON, so the month goes quoted.
 
+**The page** is published at https://gmassello.github.io/second-witness/ and refreshed daily with the current month.
+
 **Without cloning**, Relate loads the store from GitHub:
 
 ```bash
@@ -87,7 +89,14 @@ relate --load https://github.com/gmassello/second-witness/raw/main/store/gmn-202
   "MATCH (s:Station {code: 'HU000B'})-[t:STATS {month: '202610'}]->() RETURN t.two_station_orbits AS orbits_lost, t.three_station_orbits AS third_witness, t.cut_off AS cut_off"
 ```
 
-**Twelve months** (November 2025 to October 2026):
+**Twelve months** (November 2025 to October 2026), straight from Pages, or with the current month as of today from `gmn-latest.rl`:
+
+```bash
+relate --load https://gmassello.github.io/second-witness/gmn.rl \
+  "MATCH (m:Month) RETURN m.id AS month ORDER BY month"
+```
+
+Or download the release asset:
 
 ```bash
 curl -L -o store/gmn.rl https://github.com/gmassello/second-witness/releases/download/store-202610/gmn.rl

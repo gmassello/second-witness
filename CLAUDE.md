@@ -32,9 +32,10 @@ python3 -m unittest tests.test_graph.TestGraph.test_ae8_us004l_cuts_off_86_that_
 python3 -m unittest tests.test_readme   # every number in README.md against the store; runs its '# check:' blocks
 # lint: none — no build step and no linter dependency; the parity tests are the gate
 # type-check: none — plain JavaScript and Python, no type checker added
-# deploy (planned, U11): GitHub Pages from .github/workflows/pages.yml on push to main and daily,
-# loading the current month with `python3 load/build.py --partial` (published, never committed);
-# monthly: `python3 load/build.py --rebuild <YYYYMM>` then `--release <YYYYMM>` on day 15 of the next month, and again whenever a closed month's `Last-Modified` changes (ADR-0007)
+# deploy (U11): push to main, or `gh workflow run pages.yml`; .github/workflows/pages.yml publishes site/ on Pages on every push and daily,
+# with the latest release's gmn.rl, the current month from `python3 load/build.py --partial` (gmn-latest.rl, never committed) and a content check
+# monthly (U11): .github/workflows/monthly.yml runs `python3 load/build.py --monthly` daily: releases the previous month from day 15,
+# or rebuilds and replaces the latest release when a closed month's Last-Modified changed (ADR-0007); `gh workflow run monthly.yml -f today=2026-12-15`
 ```
 
-U1 to U10 are built; the other lines follow `docs/PLAN.md` and become real as each unit lands.
+U1 to U11 are built; the other lines follow `docs/PLAN.md` and become real as each unit lands.

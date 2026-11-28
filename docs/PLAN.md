@@ -184,7 +184,7 @@ At the end of the plan a judge opens a public page with no account and sees the 
 - **Covers:** R5 · F3
 - **Files:** `.github/workflows/pages.yml`, `.github/workflows/monthly.yml`, `PENDING.md`
 - **Depends on:** U5
-- **Status:** todo
+- **Status:** done (2026-11-28: also `load/gmn.py` (`<file>.headers` with ETag and Last-Modified, conditional download, `last_modified` by HEAD), `load/build.py --monthly` (`plan_monthly`), the page's "data not found" in `site/model.js`, `site/app.js` and `site/text.js`, `tests/test_deploy.py`; Pages enabled with source GitHub Actions)
 - **Tests:**
   - happy: push to main → the public URL serves the page whose title is "Second Witness"
   - happy: the scheduled run → the page shows the current month as partial with today's date, and `gmn-latest.rl` answers a take-down with `relate --load`
