@@ -74,7 +74,7 @@ export function cutoff(month) {
 export function route(hash) {
   const [, kind, a, b] = (hash || '').replace(/^#\/?/, '/').split('/');
   const up = (x) => decodeURIComponent(x || '').trim().toUpperCase();
-  if (['station', 'country', 'turn'].includes(kind) && a) return { view: kind, code: up(a) };
+  if (['station', 'country', 'turn', 'talk'].includes(kind) && a) return { view: kind, code: up(a) };
   if (kind === 'changes') return { view: 'changes' };
   if (kind === 'chain') return { view: 'chain', code: up(a), other: up(b) };
   return { view: 'home' };

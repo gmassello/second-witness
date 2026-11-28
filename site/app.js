@@ -5,6 +5,7 @@ import * as countryView from './views/country.js';
 import * as changesView from './views/changes.js';
 import * as turnView from './views/turn.js';
 import * as chainView from './views/chain.js';
+import * as talkView from './views/talk.js';
 import { LANGS, REGISTERS, t, locale } from './text.js';
 
 const root = document.documentElement;
@@ -109,11 +110,11 @@ function station(v) {
       monthLine(v),
       s.status === 'running_no_partner' ? h('p', { class: 'note' }, tr('lonely_note')) : null,
       h('p', { class: 'links' }, s.status === 'running_no_partner' ? [h('a', { href: `#/turn/${s.station}` }, tr('turn_link')), ' · '] : null,
-        h('a', { href: `#/chain/${s.station}/` }, tr('chain_link')))),
+        h('a', { href: `#/talk/${s.station}` }, tr('talk_link')), ' · ', h('a', { href: `#/chain/${s.station}/` }, tr('chain_link')))),
     h('div', { class: 'grid' }, down, partners));
 }
 
-const modules = { country: countryView, changes: changesView, turn: turnView, chain: chainView };
+const modules = { country: countryView, changes: changesView, turn: turnView, chain: chainView, talk: talkView };
 const ui = { h, tr, num, pct, date, code, stationLink, countryLink, credit, monthLine };
 
 function notFound(v) {

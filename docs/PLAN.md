@@ -131,7 +131,7 @@ At the end of the plan a judge opens a public page with no account and sees the 
 - **Covers:** R17 · F8
 - **Files:** `site/views/talk.js`, `tests/talk.test.mjs`
 - **Depends on:** U6
-- **Status:** todo
+- **Status:** done (2026-11-27: also `queries/talk_to.cypher` rewritten so `partner_stopped` lists every stopped partner of the previous month (AE18, tested on the 12-month store), the route, dispatch and copy in `site/model.js`, `site/app.js` and `site/text.js`; copy checked with `pbpaste`)
 - **Tests:**
   - happy: ES000C → at least one "could turn" camera with "estimate", the list copies as station codes with their reasons, and the optional message names ES000C and that camera with no value outside the store. Covers AE17.
   - edge: a message citing a pair carries that pair's meteor map link

@@ -122,6 +122,19 @@ const EN = {
   link_meteors: "{n} shared meteors",
   changes_link: "What changed this month",
   chain_link: "Chain between two stations",
+  talk_link: "who to talk to",
+  talk_title: "Who {code}'s owner could talk to",
+  talk_note: "Station codes with the reason, to pass on to the owners or to a coordinator who knows them. GMN publishes stations by code only.",
+  reason_could_pair: "could pair by turning, {km} km away, about {n} km² of shared sky",
+  reason_only_partner: "your only partner: {n} shared meteors",
+  reason_partner_stopped: "stopped appearing; lost shared meteors: {n} in {month}",
+  was_only: "was your only partner",
+  talk_none: "Nobody to talk to this month.",
+  message_title: "Message for GMN's mailing list",
+  message_note: "Optional, in English, with station codes and numbers from the store only. You decide whether to post it.",
+  copy: "Copy",
+  copied: "Copied.",
+  copy_failed: "The browser did not allow copying: select the text and copy it.",
 };
 
 const ES = {
@@ -245,6 +258,19 @@ const ES = {
   link_meteors: "{n} meteoros compartidos",
   changes_link: "Qué cambió este mes",
   chain_link: "Cadena entre dos estaciones",
+  talk_link: "con quién hablar",
+  talk_title: "Con quién podría hablar el dueño de {code}",
+  talk_note: "Códigos de estación con el motivo, para pasar a los dueños o a un coordinador que los conozca. GMN publica las estaciones solo por código.",
+  reason_could_pair: "podría hacer pareja girando, a {km} km, unos {n} km² de cielo compartido",
+  reason_only_partner: "tu única pareja: {n} meteoros compartidos",
+  reason_partner_stopped: "dejó de aparecer; meteoros compartidos perdidos: {n} en {month}",
+  was_only: "era tu única pareja",
+  talk_none: "No hay con quién hablar este mes.",
+  message_title: "Mensaje para la lista de correo de GMN",
+  message_note: "Opcional, en inglés, solo con códigos de estación y números del store. Vos decidís si lo publicás.",
+  copy: "Copiar",
+  copied: "Copiado.",
+  copy_failed: "El navegador no permitió copiar: seleccioná el texto y copialo.",
 };
 
 export const TEXT = { en: EN, es: ES };

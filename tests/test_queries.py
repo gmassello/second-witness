@@ -33,6 +33,13 @@ def run_file(path, store=FIXTURE, **params):
     return [json.loads(line) for line in r.stdout.splitlines() if line.startswith("{")]
 
 
+def run_file_query(store, query):
+    with tempfile.TemporaryDirectory() as tmp:
+        bad = Path(tmp) / "inline.cypher"
+        bad.write_text(query)
+        return run_file(bad, store=store)
+
+
 def q(name, **params):
     return run_file(QUERIES / f"{name}.cypher", **params)
 
@@ -156,6 +163,23 @@ class TestQueries(unittest.TestCase):
         rows = run_file(QUERIES / "take_down.cypher", store=STORE12, station="US003Y", month="202602")
         us = next(r for r in rows if r["partner"] == "US005V")
         self.assertEqual((us["effect"], us["meteors"]), ("loses_only_partner", 8))
+
+    @unittest.skipUnless(STORE12.exists(), "needs the 12-month store/gmn.rl")
+    def test_ae18_nz002c_lists_every_stopped_september_partner(self):
+        expected = {r["code"]: r["n"] for r in run_file_query(STORE12,
+            "MATCH (x:Station {code:'NZ002C'})-[s:SHARED {month:'202609'}]-(p:Station)-[t:STATS {month:'202610'}]->() "
+            "WHERE t.change IN ['stopped', 'possibly_moved'] RETURN p.code AS code, s.meteors AS n")}
+        rows = run_file(QUERIES / "talk_to.cypher", store=STORE12, station="NZ002C", month="202610")
+        got = {r["other"]: r["n"] for r in rows if r["reason"] == "partner_stopped"}
+        self.assertTrue(expected)
+        self.assertEqual(got, expected)
+        self.assertTrue(all(r["month"] == "202609" and r["link"].startswith("https://tammojan.github.io/meteormap/?data=2026-09&") for r in rows if r["reason"] == "partner_stopped"))
+
+    def test_talk_to_link_matches_take_down_link(self):
+        lone, hub = self.single_partner()
+        talk = next(r for r in q("talk_to", station=lone, month=MONTH) if r["reason"] == "only_partner")
+        down = next(r for r in q("take_down", station=lone, month=MONTH) if r["partner"] == hub)
+        self.assertEqual(talk["link"], down["link"])
 
     def test_ae13_lonely_cameras_lists_es000c(self):
         rows = q("lonely_cameras", country=None, month=MONTH)
