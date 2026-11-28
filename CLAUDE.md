@@ -8,6 +8,8 @@ Source of truth: `docs/BRIEF.md` (Second Witness). `research/` holds the measure
 # install: Relate CLI 1.2.0 (the event's required technology); the loader is Python 3 stdlib + this CLI
 curl -fsSL https://relatedb.ai/install.sh | sh
 python3 -m venv .venv && .venv/bin/pip install relate-db==1.2.0   # MCP server only (U9)
+# MCP server (U9): stdio, read-only, default the October fixture; --store store/gmn.rl for 12 months
+.venv/bin/python mcp/server.py
 # load (U1): one month into store/gmn.rl (downloads are cached in research/raw/)
 python3 load/build.py 202610
 python3 load/build.py --rebuild 202610                                  # the 12 months ending in 202610
@@ -34,4 +36,4 @@ python3 -m unittest tests.test_graph.TestGraph.test_ae8_us004l_cuts_off_86_that_
 # monthly: `python3 load/build.py --rebuild <YYYYMM>` then `--release <YYYYMM>` on day 15 of the next month, and again whenever a closed month's `Last-Modified` changes (ADR-0007)
 ```
 
-U1 to U5 are built; the other lines follow `docs/PLAN.md` and become real as each unit lands.
+U1 to U9 are built; the other lines follow `docs/PLAN.md` and become real as each unit lands.

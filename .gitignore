@@ -9,3 +9,4 @@ store/gmn-latest.rl
 store/*.tmp.rl
 docs/competitors/
 site/data/
+.venv/

@@ -157,7 +157,7 @@ At the end of the plan a judge opens a public page with no account and sees the 
 - **Files:** `mcp/server.py`, `tests/test_mcp.py`, `docs/agent-run.md`
 - **Notes:** a stdlib JSON-RPC loop with our named tools, handling: negotiate `protocolVersion` (2025-06-18, 2025-03-26, 2024-11-05), `-32700` on bad JSON, `-32602` for an unknown tool, `title`, `annotations` (`readOnlyHint` true), `outputSchema` and `structuredContent {query, parameters, rows}` plus a text copy, open the store once with `relate.connect(path, read_only=True)` and pass parameters as a dict, logs to stderr; the README also gives `relate serve --database store/gmn.rl --mcp stdio --read-only` as a zero-code fallback with Relate's own `read_cypher`
 - **Depends on:** U3
-- **Status:** todo
+- **Status:** done (2026-11-28: `relate-db==1.2.0` in `.venv` (git-ignored), read-only open leaves the fixture's hash unchanged; recorded run in `docs/agent-run.md`, where a first run misread `third_witness_orbits` until the tool description spelled it out)
 - **Tests:**
   - happy: a recorded agent run asks about HU000B → the tool's rows equal the page's take-down for HU000B. Covers AE6.
   - happy: every tool → equal rows to the CLI for the same query and parameters
