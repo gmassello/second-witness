@@ -15,7 +15,7 @@ Code status in one line: no product code yet; `docs/BRIEF.md` describes Second W
 | Surface | Where | Status | Verified |
 |---|---|---|---|
 | Repo and CI | `gmassello/second-witness` @ `<sha>` | public, topics `relate` + `relate-neo4j-hackathon` | |
-| Site | <URL> | | |
+| Site | https://gmassello.github.io/second-witness/ (daily Pages deploy, `gmn.rl` and `gmn-latest.rl` beside it) | ok | 2026-11-28 |
 | Submission | <public URL, not /edit> | | |
 | Gallery card | <gallery URL> | | |
 | Upstream PR | #<n> | | |
