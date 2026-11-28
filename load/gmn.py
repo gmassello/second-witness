@@ -1,6 +1,7 @@
 import calendar
 import datetime
 import json
+import os
 import re
 import statistics
 import time
@@ -13,7 +14,7 @@ from pathlib import Path
 
 import geometry
 
-BASE = "https://globalmeteornetwork.org"
+BASE = os.environ.get("GMN_BASE", "https://globalmeteornetwork.org")
 HEADERS = {"User-Agent": "second-witness/0.1 (GMN network analysis)"}
 COLUMNS = 86
 COL_STATIONS = 85
@@ -27,6 +28,25 @@ class LayoutError(Exception):
     pass
 
 
+def headers_path(dest):
+    return dest.with_name(dest.name + ".headers")
+
+
+def saved_headers(dest):
+    p = headers_path(dest)
+    return json.loads(p.read_text()) if p.exists() else {}
+
+
+def traj_url(month):
+    return f"{BASE}/data/traj_summary_data/monthly/traj_summary_monthly_{month}.txt"
+
+
+def last_modified(url):
+    req = urllib.request.Request(url, headers=HEADERS, method="HEAD")
+    with urllib.request.urlopen(req, timeout=60) as r:
+        return r.headers.get("Last-Modified")
+
+
 def get(url, dest, force=False):
     if dest.exists() and dest.stat().st_size > 0 and not force:
         return True
@@ -34,15 +54,22 @@ def get(url, dest, force=False):
     if gone.exists() and not force:
         return False
     dest.parent.mkdir(parents=True, exist_ok=True)
-    req = urllib.request.Request(url, headers=HEADERS)
+    headers = dict(HEADERS)
+    etag = saved_headers(dest).get("etag") if dest.exists() else None
+    if etag:
+        headers["If-None-Match"] = etag
+    req = urllib.request.Request(url, headers=headers)
     for attempt in range(3):
         try:
             with urllib.request.urlopen(req, timeout=120) as r:
                 tmp = dest.with_suffix(dest.suffix + ".part")
                 tmp.write_bytes(r.read())
                 tmp.replace(dest)
+                headers_path(dest).write_text(json.dumps({"etag": r.headers.get("ETag"), "last_modified": r.headers.get("Last-Modified")}))
             return True
         except urllib.error.HTTPError as e:
+            if e.code == 304:
+                return True
             if e.code == 404:
                 gone.touch()
                 return False
@@ -55,7 +82,7 @@ def get(url, dest, force=False):
 def fetch(month, cache, fresh=False):
     year, mon = int(month[:4]), int(month[4:])
     traj = cache / month / f"traj_summary_monthly_{month}.txt"
-    get(f"{BASE}/data/traj_summary_data/monthly/{traj.name}", traj, force=fresh)
+    get(traj_url(month), traj, force=fresh)
     get(f"{BASE}/data/kml_fov/GMN_station_coordinates_public.json", cache / "GMN_station_coordinates_public.json", force=fresh)
     get(f"{BASE}/status/gmncountries2.json", cache / "gmncountries2.json")
     get(f"{BASE}/status/Rmsindexes/country_dataset.json", cache / "country_dataset.json")

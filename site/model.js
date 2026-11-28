@@ -27,9 +27,9 @@ async function unwind(db, text, name, doc, pause) {
 }
 
 export async function load({ wasm, wasmInput, getJson, getText, pause = () => new Promise((r) => setTimeout(r)), progress = () => {} }) {
+  const stats = await getJson(versioned('data/stats.json')).catch(() => { throw new Error('data_missing'); });
   await wasm.default(wasmInput);
   const db = new wasm.RelateDb();
-  const stats = await getJson(versioned('data/stats.json'));
   progress('stats');
   await unwind(db, await getText(versioned('cypher/stats.cypher')), 'stats', stats, pause);
   const pairsText = await getText(versioned('cypher/pairs.cypher'));

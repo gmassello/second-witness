@@ -172,4 +172,4 @@ model.guard(() => model.load({
   if (app.trap) { main.replaceChildren(trapped(app)); return; }
   state.app = app;
   render();
-}).catch((e) => main.replaceChildren(h('p', { role: 'alert' }, tr('error', { message: e.message }))));
+}).catch((e) => main.replaceChildren(h('p', { role: 'alert' }, e.message === 'data_missing' ? tr('data_missing') : tr('error', { message: e.message }))));

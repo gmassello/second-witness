@@ -115,11 +115,11 @@ def enrich(month, data, store, cache, offline, now, fresh_fov):
     d["could"] = geometry.could_pair(d["stations"], polys, dates)
 
 
-def load(store, months, cache, offline, fresh_store=False, partial_as_of=None, base=None):
+def load(store, months, cache, offline, fresh_store=False, partial_as_of=None, base=None, refresh=()):
     data = {}
     for month in months:
         if not offline:
-            gmn.fetch(month, cache, fresh=partial_as_of is not None)
+            gmn.fetch(month, cache, fresh=partial_as_of is not None or month in refresh)
         if not (cache / month / f"traj_summary_monthly_{month}.txt").exists():
             raise SystemExit(f"stopped before writing: {month}: no trajectory file at GMN")
         try:
@@ -142,7 +142,35 @@ def load(store, months, cache, offline, fresh_store=False, partial_as_of=None, b
     tmp.replace(store)
 
 
-def release(store, tag_month, manifest):
+def plan_monthly(today, manifest, current):
+    y, m, d = (int(x) for x in today.split("-"))
+    target = f"{y - 1}12" if m == 1 else f"{y}{m - 1:02d}"
+    latest = next((r for r in manifest.get("releases", []) if r["tag"] == manifest.get("latest")), {})
+    released = latest.get("months", [])
+    recorded = latest.get("last_modified", {})
+    stale = [x for x in released if x in recorded and current.get(x) and current[x] != recorded[x]]
+    if d >= 15 and (not released or target > released[-1]):
+        return target, stale
+    if stale:
+        return released[-1], stale
+    return None
+
+
+def monthly(store, cache, manifest, today):
+    doc = json.loads(manifest.read_text()) if manifest.exists() else {"releases": []}
+    latest = next((r for r in doc["releases"] if r["tag"] == doc.get("latest")), {})
+    current = {m: gmn.last_modified(gmn.traj_url(m)) for m in latest.get("months", [])}
+    plan = plan_monthly(today, doc, current)
+    if not plan:
+        print(f"{today}: nothing to release")
+        return
+    end, stale = plan
+    print(f"{today}: releasing {end}" + (f", {', '.join(stale)} changed at GMN" if stale else ""))
+    load(store, gmn.window(end), cache, False, fresh_store=True, refresh=set(stale))
+    release(store, end, manifest, cache)
+
+
+def release(store, tag_month, manifest, cache=None):
     months = months_in(store)
     gh = os.environ.get("GH_BIN", "gh")
     tag = f"store-{tag_month}"
@@ -156,7 +184,8 @@ def release(store, tag_month, manifest):
             subprocess.run([gh, "release", "create", tag, str(asset), "--repo", REPO, "--title", tag, "--notes", notes, "--latest"], check=True)
     doc = json.loads(manifest.read_text()) if manifest.exists() else {"releases": []}
     entry = {"tag": tag, "months": months, "bytes": store.stat().st_size,
-             "url": f"https://github.com/{REPO}/releases/download/{tag}/gmn.rl"}
+             "url": f"https://github.com/{REPO}/releases/download/{tag}/gmn.rl",
+             "last_modified": {m: lm for m in months if cache and (lm := gmn.saved_headers(cache / m / f"traj_summary_monthly_{m}.txt").get("last_modified"))}}
     doc["releases"] = [r for r in doc["releases"] if r["tag"] != tag] + [entry]
     doc["latest"] = tag
     manifest.parent.mkdir(parents=True, exist_ok=True)
@@ -177,9 +206,13 @@ def main():
     ap.add_argument("--out", type=Path, default=ROOT / "store" / "gmn-latest.rl")
     ap.add_argument("--release", metavar="YYYYMM", help="upload the store as release store-YYYYMM")
     ap.add_argument("--manifest", type=Path, default=ROOT / "data" / "months.json")
+    ap.add_argument("--monthly", action="store_true", help="release the previous month from day 15, or rebuild the latest release if a closed month changed at GMN")
+    ap.add_argument("--today", help="YYYY-MM-DD for --monthly (default today, UTC)")
     a = ap.parse_args()
-    if a.release:
-        release(a.store, a.release, a.manifest)
+    if a.monthly:
+        monthly(a.store, a.source, a.manifest, a.today or datetime.datetime.now(datetime.UTC).date().isoformat())
+    elif a.release:
+        release(a.store, a.release, a.manifest, a.source)
     elif a.partial:
         as_of = a.as_of or datetime.datetime.now(datetime.UTC).replace(tzinfo=None).isoformat(timespec="seconds")
         load(a.out, [as_of[:4] + as_of[5:7]], a.source, a.offline, partial_as_of=as_of, base=a.store)
@@ -188,7 +221,7 @@ def main():
     elif a.months:
         load(a.store, a.months, a.source, a.offline, fresh_store=a.fresh)
     else:
-        ap.error("give months, --rebuild, --partial or --release")
+        ap.error("give months, --rebuild, --partial, --release or --monthly")
 
 
 if __name__ == "__main__":

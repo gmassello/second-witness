@@ -110,3 +110,8 @@ test('a WASM trap gives the reload state with the CLI command', async () => {
   const other = await model.guard(async () => { throw new Error('boom'); }, isWasmTrap).catch((e) => e.message);
   assert.equal(other, 'boom');
 });
+
+test('missing page data says data not found', async () => {
+  const fail = () => Promise.reject(new Error('data/stats.json: 404'));
+  await assert.rejects(model.load({ wasm: null, getJson: fail, getText: fail }), { message: 'data_missing' });
+});

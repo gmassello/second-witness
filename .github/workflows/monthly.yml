@@ -1,0 +1,47 @@
+name: Monthly release
+
+on:
+  schedule:
+    - cron: "41 7 * * *"
+  workflow_dispatch:
+    inputs:
+      today:
+        description: "YYYY-MM-DD to decide as (default today, UTC)"
+        required: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: monthly
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install relate 1.2.0
+        run: |
+          curl -fsSL https://relatedb.ai/install.sh | sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          "$HOME/.local/bin/relate" --version | grep -F v1.2.0
+      - name: Restore GMN downloads
+        uses: actions/cache@v4
+        with:
+          path: research/raw
+          key: gmn-monthly-${{ github.run_id }}
+          restore-keys: gmn-monthly-
+      - name: Release the previous month from day 15, or a changed closed month
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TODAY: ${{ inputs.today }}
+        run: python3 load/build.py --monthly ${TODAY:+--today "$TODAY"}
+      - name: Commit data/months.json
+        run: |
+          git add data/months.json
+          if git diff --cached --quiet; then echo "months.json unchanged"; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Release $(python3 -c "import json; print(json.load(open('data/months.json'))['latest'])") in data/months.json"
+          git push

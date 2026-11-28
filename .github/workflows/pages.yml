@@ -1,0 +1,80 @@
+name: Pages
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "23 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install relate 1.2.0
+        run: |
+          curl -fsSL https://relatedb.ai/install.sh | sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          "$HOME/.local/bin/relate" --version | grep -F v1.2.0
+      - name: Restore GMN downloads (ETag cache)
+        uses: actions/cache@v4
+        with:
+          path: research/raw
+          key: gmn-raw-${{ github.run_id }}
+          restore-keys: gmn-raw-
+      - name: Latest release store
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release download --repo "$GITHUB_REPOSITORY" --pattern gmn.rl --dir store --clobber
+      - name: Current month (partial)
+        run: |
+          if ! python3 load/build.py --partial; then
+            echo "::warning::no partial month published today; the page shows the latest release"
+            cp store/gmn.rl store/gmn-latest.rl
+          fi
+      - name: Page data and stores
+        run: |
+          python3 load/export.py --store store/gmn-latest.rl
+          rm site/queries && cp -R queries site/queries
+          cp store/gmn.rl site/gmn.rl
+          cp store/gmn-latest.rl site/gmn-latest.rl
+      - name: Content check
+        run: |
+          grep -qF '<title>Second Witness</title>' site/index.html
+          python3 -c "import json; d = json.load(open('site/data/stats.json')); assert d['months'] and d['pairs'], 'no months'; print('months', d['months'][0]['id'], '..', d['months'][-1]['id'])"
+          test -s site/gmn.rl
+          test -s site/gmn-latest.rl
+          test -f site/queries/take_down.cypher
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
+      - name: Published content check
+        env:
+          URL: ${{ steps.deployment.outputs.page_url }}
+        run: |
+          for i in $(seq 1 30); do
+            curl -fsSL "${URL}" | grep -qF '<title>Second Witness</title>' && curl -fsSL "${URL}data/stats.json" | grep -qF '"months"' && exit 0
+            sleep 10
+          done
+          echo "::error::${URL} does not serve the page and its data"
+          exit 1
