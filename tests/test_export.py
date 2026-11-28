@@ -83,6 +83,11 @@ class TestExport(unittest.TestCase):
         self.assertEqual(doc["pairs"], ["202610"])
         self.assertEqual(sorted(p.name for p in self.out.glob("pairs-*.json")), ["pairs-202610.json"])
 
+    def test_one_month_store_has_no_country_partner_files(self):
+        doc = json.loads((self.out / "stats.json").read_text())
+        self.assertEqual(doc["partners"], [])
+        self.assertEqual(list(self.out.glob("partners-*.json")), [])
+
     def test_no_fov_polygons_in_page_data(self):
         doc = json.loads((self.out / "stats.json").read_text())
         self.assertFalse(any("fov100" in s for s in doc["stations"]))
@@ -118,6 +123,10 @@ class TestExportShape(unittest.TestCase):
         doc = json.loads((self.tmp / "data" / "stats.json").read_text())
         self.assertEqual(doc["pairs"], ["202609", "202610"])
         self.assertEqual([m["id"] for m in doc["months"]], ["202608", "202609", "202610"])
+        self.assertEqual(doc["partners"], ["ES"])
+        es = json.loads((self.tmp / "data" / "partners-ES.json").read_text())
+        self.assertEqual([e["p"]["month"] for e in es["shared"]], ["202608"])
+        self.assertTrue(all("ES" in (e["a"][:2], e["b"][:2]) for e in es["shared"]))
 
     def test_size_check_fails_over_50_mb_with_the_size(self):
         big = self.tmp / "big.rl"

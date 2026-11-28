@@ -144,7 +144,7 @@ At the end of the plan a judge opens a public page with no account and sees the 
 - **Covers:** R20, R21 · F10
 - **Files:** `load/build.py`, `site/views/history.js`, `tests/test_history.py`
 - **Depends on:** U5
-- **Status:** todo
+- **Status:** done (2026-11-27: also `load/export.py` with `partners-<CC>.json` and `site/cypher/partners.cypher`, `loadCountryPartners` and the route in `site/model.js`, links and copy in `site/app.js`, `site/views/country.js` and `site/text.js`; the Node parity helper now compares nested values, and a 12-month history on WASM equals the CLI)
 - **Tests:**
   - happy: ES000C's history → its October 2026 row shows 31 nights, 1,797 detections and 0 orbits. Covers AE21.
   - happy: Spain's history → 12 months listed, October's two-station share equals AE9's. Covers AE22.

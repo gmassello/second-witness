@@ -1,7 +1,8 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
-import { SITE, MONTH, cli, canon, loadApp } from './page_setup.mjs';
+import fs from 'node:fs';
+import { SITE, MONTH, STORE12, cli, canon, loadApp } from './page_setup.mjs';
 
 const model = await import(path.join(SITE, 'model.js'));
 const country = await import(path.join(SITE, 'views', 'country.js'));
@@ -78,4 +79,30 @@ test('chain: unknown codes are not found, different islands are named, a path ca
   const path = await chain.data(app, model.route('#/chain/DE0001/HU000B'));
   assert.equal(path.row.reason, null);
   assert.equal(path.row.meteors.length, path.row.path.length - 1);
+});
+
+test('station and country history views', async () => {
+  const history = await import(path.join(SITE, 'views', 'history.js'));
+  assert.deepEqual(model.route('#/history/station/es000c'), { view: 'history', kind: 'station', code: 'ES000C' });
+  const s = await history.data(app, model.route('#/history/station/ES000C'));
+  const oct = s.rows.find((r) => r.month === MONTH);
+  assert.deepEqual([oct.nights, oct.detections, oct.orbits], [31, 1797, 0]);
+  const c = await history.data(app, model.route('#/history/country/ES'));
+  assert.equal(c.rows[c.rows.length - 1].two_station_share, cli('country', { country: 'ES', month: MONTH })[0].two_station_share);
+  assert.equal((await history.data(app, model.route('#/history/station/ZZ9999'))).view, 'not_found');
+});
+
+test('12 months: a station history on the page equals the CLI on the store', { skip: !fs.existsSync(STORE12) && 'needs store/gmn.rl' }, async () => {
+  const history = await import(path.join(SITE, 'views', 'history.js'));
+  const full = await loadApp(STORE12);
+  try {
+    const t0 = Date.now();
+    const v = await history.data(full.app, model.route('#/history/station/HU000B'));
+    const ms = Date.now() - t0;
+    assert.equal(v.rows.length, 12);
+    assert.deepEqual(canon(v.rows), canon(cli('station_history', { station: 'HU000B' }, STORE12)));
+    console.log(`history HU000B with partners-HU loaded in ${ms} ms`);
+  } finally {
+    full.cleanup();
+  }
 });

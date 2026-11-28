@@ -19,6 +19,7 @@ export function render(v, ui) {
       ui.monthLine(v),
       h('p', { class: 'big' }, tr('country_share', { share: pct(c.two_station_share), orbits: num(c.orbits) })),
       h('p', {}, tr('country_three', { n: num(c.three_station_orbits) })),
+      h('p', { class: 'links' }, h('a', { href: `#/history/country/${c.country}` }, tr('history_link'))),
       h('button', { type: 'button', class: 'noprint', onclick: () => window.print() }, tr('print'))),
     h('div', { class: 'grid' },
       h('section', { class: 'card' },

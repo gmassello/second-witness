@@ -10,10 +10,12 @@ export const SITE = path.join(ROOT, 'site');
 export const FIXTURE = path.join(ROOT, 'store', 'gmn-202610.rl');
 export const MONTH = '202610';
 
-export function cli(name, params) {
+export const STORE12 = path.join(ROOT, 'store', 'gmn.rl');
+
+export function cli(name, params, store = FIXTURE) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sw-'));
   const copy = path.join(dir, 'q.rl');
-  fs.copyFileSync(FIXTURE, copy);
+  fs.copyFileSync(store, copy);
   const args = ['--database', copy, '--max-rows', '0', '--jsonl'];
   for (const [k, v] of Object.entries(params)) args.push('--param', `${k}=${JSON.stringify(v)}`);
   args.push(fs.readFileSync(path.join(SITE, 'queries', `${name}.cypher`), 'utf8'));
@@ -23,13 +25,14 @@ export function cli(name, params) {
   return r.stdout.split('\n').filter((l) => l.startsWith('{') && !l.includes('rowCap')).map((l) => JSON.parse(l));
 }
 
-export const canon = (rows) => rows.map((r) => JSON.stringify(r, Object.keys(r).sort())).sort();
+const sortKeys = (x) => (Array.isArray(x) ? x.map(sortKeys) : x && typeof x === 'object' ? Object.fromEntries(Object.keys(x).sort().map((k) => [k, sortKeys(x[k])])) : x);
+export const canon = (rows) => rows.map((r) => JSON.stringify(sortKeys(r))).sort();
 
-export async function loadApp() {
+export async function loadApp(store = FIXTURE) {
   const model = await import(path.join(SITE, 'model.js'));
   const wasm = await import(path.join(SITE, 'vendor', 'relate-wasm', 'relate.js'));
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'sw-data-'));
-  const r = spawnSync('python3', [path.join(ROOT, 'load', 'export.py'), '--store', FIXTURE, '--out', tmp], { encoding: 'utf8' });
+  const r = spawnSync('python3', [path.join(ROOT, 'load', 'export.py'), '--store', store, '--out', tmp], { encoding: 'utf8' });
   assert.equal(r.status, 0, r.stderr);
   const app = await model.load({
     wasm,

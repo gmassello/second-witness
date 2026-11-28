@@ -51,6 +51,18 @@ def export(store, out):
         for month in doc["pairs"]:
             pairs = {"month": month, **{k: read(copy, EDGE.format(rel=rel), month=month) for k, rel in EDGES.items()}}
             (out / f"pairs-{month}.json").write_text(json.dumps(pairs, separators=(",", ":")))
+        for old in out.glob("partners-*.json"):
+            old.unlink()
+        older = [m for m in months if m not in doc["pairs"]]
+        by_country = {}
+        for month in older:
+            for e in read(copy, EDGE.format(rel="SHARED"), month=month):
+                e["p"].pop("sample_ids", None)
+                for cc in {e["a"][:2], e["b"][:2]}:
+                    by_country.setdefault(cc, []).append(e)
+        doc["partners"] = sorted(by_country)
+        for cc, edges in by_country.items():
+            (out / f"partners-{cc}.json").write_text(json.dumps({"country": cc, "shared": edges}, separators=(",", ":")))
         (out / "stats.json").write_text(json.dumps(doc, separators=(",", ":")))
     for f in sorted(out.glob("*.json")):
         print(f"{f.name}: {f.stat().st_size} bytes")

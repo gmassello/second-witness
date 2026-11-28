@@ -120,6 +120,8 @@ def load(store, months, cache, offline, fresh_store=False, partial_as_of=None, b
     for month in months:
         if not offline:
             gmn.fetch(month, cache, fresh=partial_as_of is not None)
+        if not (cache / month / f"traj_summary_monthly_{month}.txt").exists():
+            raise SystemExit(f"stopped before writing: {month}: no trajectory file at GMN")
         try:
             data[month] = gmn.month_data(month, cache)
         except gmn.LayoutError as e:

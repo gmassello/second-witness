@@ -42,6 +42,14 @@ export async function load({ wasm, wasmInput, getJson, getText, pause = () => ne
   };
   const latest = stats.pairs[stats.pairs.length - 1];
   await loadPairs(latest);
+  const partnersText = await getText(versioned('cypher/partners.cypher'));
+  const countries = new Set();
+  const loadCountryPartners = async (cc) => {
+    if (countries.has(cc) || !(stats.partners || []).includes(cc)) return;
+    countries.add(cc);
+    progress(`partners ${cc}`);
+    await unwind(db, partnersText, 'partners', await getJson(versioned(`data/partners-${cc}.json`)), pause);
+  };
   for (const stmt of statements(await getText(versioned('cypher/link.cypher')))) execute(db, stmt, { latest });
   const months = stats.months;
   const queries = {};
@@ -49,6 +57,7 @@ export async function load({ wasm, wasmInput, getJson, getText, pause = () => ne
     db,
     months,
     loadPairs,
+    loadCountryPartners,
     month: months[months.length - 1].id,
     monthInfo: (id) => months.find((m) => m.id === id),
     async run(name, params) {
@@ -77,6 +86,7 @@ export function route(hash) {
   if (['station', 'country', 'turn', 'talk'].includes(kind) && a) return { view: kind, code: up(a) };
   if (kind === 'changes') return { view: 'changes' };
   if (kind === 'chain') return { view: 'chain', code: up(a), other: up(b) };
+  if (kind === 'history' && (a === 'station' || a === 'country') && b) return { view: 'history', kind: a, code: up(b) };
   return { view: 'home' };
 }
 
